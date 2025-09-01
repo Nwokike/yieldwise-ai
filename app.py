@@ -445,7 +445,9 @@ def api_diagnose_follow_up():
         return jsonify({'error': 'Sorry, an error occurred.'}), 500
 
 # --- MAIN EXECUTION BLOCK ---
+# --- MAIN EXECUTION BLOCK ---
 if __name__ == '__main__':
     init_db()
-    app.run(debug=True, use_reloader=False)
+    app.run(debug=False, use_reloader=False)
+
 
