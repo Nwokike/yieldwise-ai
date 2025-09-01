@@ -21,7 +21,7 @@
 
 ---
 
-### **[🚀 View Live Demo](YOUR_RENDER_APP_LINK_HERE)**
+### **[🚀 View Live Demo](https://yieldwise-ai.onrender.com/)**
 
 ---
 
