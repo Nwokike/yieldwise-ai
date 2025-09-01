@@ -24,7 +24,7 @@ from weasyprint import HTML
 import google.generativeai as genai
 from PIL import Image
 
-# The new, stable library for Groq, as per your working version
+# The stable library for Groq
 from langchain_groq import ChatGroq
 
 # Load environment variables from .env file
@@ -51,7 +51,7 @@ gemini_model_vision = genai.GenerativeModel('gemini-1.5-flash')
 groq_chat = ChatGroq(
     temperature=0.7,
     groq_api_key=GROQ_API_KEY,
-    model_name="llama-3.1-8b-instant" # CORRECT, SUPPORTED MODEL
+    model_name="llama-3.1-8b-instant"
 )
 
 # --- DATABASE SETUP ---
@@ -63,7 +63,16 @@ def get_db_connection():
 def init_db():
     conn = get_db_connection()
     conn.execute('CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT NOT NULL UNIQUE, password TEXT NOT NULL, name TEXT NOT NULL);')
-    conn.execute('CREATE TABLE IF NOT EXISTS farm_plans (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, location TEXT NOT NULL, country TEXT, currency TEXT, plan_html TEXT NOT NULL, showcase_id TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (user_id) REFERENCES users (id));')
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS farm_plans (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, 
+            location TEXT NOT NULL, country TEXT, currency TEXT, 
+            plan_html TEXT NOT NULL, showcase_id TEXT, 
+            is_promoted INTEGER DEFAULT 0, -- New monetization field
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
+            FOREIGN KEY (user_id) REFERENCES users (id)
+        );
+    ''')
     conn.execute('CREATE TABLE IF NOT EXISTS chat_history (id INTEGER PRIMARY KEY AUTOINCREMENT, plan_id INTEGER NOT NULL, role TEXT NOT NULL, content TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (plan_id) REFERENCES farm_plans (id));')
     conn.execute('CREATE TABLE IF NOT EXISTS diagnoses (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, title TEXT NOT NULL, crop_type TEXT, report_html TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (user_id) REFERENCES users (id));')
     conn.execute('CREATE TABLE IF NOT EXISTS diagnoses_chat_history (id INTEGER PRIMARY KEY AUTOINCREMENT, diagnosis_id INTEGER NOT NULL, role TEXT NOT NULL, content TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (diagnosis_id) REFERENCES diagnoses (id));')
@@ -75,12 +84,9 @@ def init_db():
 def dateformat(value, format='%Y-%m-%d'):
     if value is None: return ""
     if isinstance(value, str):
-        try:
-            value = datetime.strptime(value, '%Y-%m-%d %H:%M:%S')
-        except (ValueError, TypeError):
-            return value
-    if hasattr(value, 'strftime'):
-        return value.strftime(format)
+        try: value = datetime.strptime(value, '%Y-%m-%d %H:%M:%S')
+        except (ValueError, TypeError): return value
+    if hasattr(value, 'strftime'): return value.strftime(format)
     return value
 
 def allowed_file(filename):
@@ -96,25 +102,22 @@ def load_user(user_id):
     conn = get_db_connection()
     user_data = conn.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
     conn.close()
-    if user_data:
-        return User(user_data['id'], user_data['email'], user_data['password'], user_data['name'])
+    if user_data: return User(user_data['id'], user_data['email'], user_data['password'], user_data['name'])
     return None
 
 # --- CORE AI FUNCTIONS ---
 def generate_farm_plan(location, space, budget, country, currency):
     try:
-        # Using the stable, non-searching prompt with the reliable Langchain Groq client
         master_prompt = f"""
-        **Instruction:** You are an expert Nigerian agronomist. Using your general knowledge, generate a concise business plan in simple markdown format, followed by three suggested follow-up questions separated by "---SUGGESTIONS---".
+        **Instruction:** You are an expert agronomist. Using your general knowledge, generate a concise business plan in simple markdown format, followed by three suggested follow-up questions separated by "---SUGGESTIONS---".
 
         **Business Plan Sections for a user in {location}, {country} with a budget of {currency} {budget} for a {space} space:**
         1.  **🌱 Recommended Crop:** Based on your knowledge, choose ONE highly profitable, fast-growing crop suitable for the user's location. Justify your choice.
         2.  **💰 Budget Breakdown (in {currency}):** Create a markdown table for the EXACT budget.
-        3.  **🛍️ Supplies & Sourcing:** Create markdown links searching for each budget item on Jumia Nigeria. Format: `* [Item Name](https://www.jumia.com.ng/catalog/?q=item+name)`.
-        4.  **🗓️ 90-Day Action Plan:** A simple 4-step timeline.
-        5.  **📈 Realistic Earnings Projection:** Estimate harvest and earnings in {currency}.
-        6.  **🛒 Simple Market Strategy:** ONE sentence on the easiest way to sell.
-        7.  **⚠️ Risk & Mitigation:** ONE major risk and ONE simple mitigation.
+        3.  **🗓️ 90-Day Action Plan:** A simple 4-step timeline.
+        4.  **📈 Realistic Earnings Projection:** Estimate harvest and earnings in {currency}.
+        5.  **🛒 Simple Market Strategy:** ONE sentence on the easiest way to sell.
+        6.  **⚠️ Risk & Mitigation:** ONE major risk and ONE simple mitigation.
         
         ---SUGGESTIONS---
         
@@ -125,14 +128,11 @@ def generate_farm_plan(location, space, budget, country, currency):
         """
         response = groq_chat.invoke(master_prompt)
         full_response = response.content
-
         if "---SUGGESTIONS---" in full_response:
             plan_text, suggestions_text = full_response.split("---SUGGESTIONS---", 1)
             suggestions = [s.strip() for s in suggestions_text.strip().split('\n') if s.strip() and s.strip().startswith(('1', '2', '3', '- '))]
         else:
-            plan_text = full_response
-            suggestions = []
-
+            plan_text, suggestions = full_response, []
         plan_html = markdown.markdown(plan_text, extensions=['tables'])
         return plan_html, suggestions
     except Exception as e:
@@ -145,17 +145,14 @@ def diagnose_plant_issue(image_file, crop_type):
         prompt_parts = [
             f"""
             Analyze the attached image of a {crop_type} leaf. Your response must be in two parts, separated by "---SUGGESTIONS---".
-
             **Part 1: Diagnosis Report (Markdown Format)**
-            1.  **Title:** A short, descriptive title.
-            2.  **Analysis:** Identify the likely pest or disease.
-            3.  **Symptoms:** Describe symptoms in the image.
-            4.  **Organic Treatment:** Recommend one organic method for a Nigerian farmer.
-            5.  **Chemical Treatment:** Recommend one chemical method.
+            1. **Title:** A short, descriptive title.
+            2. **Analysis:** Identify the likely pest or disease.
+            3. **Symptoms:** Describe symptoms in the image.
+            4. **Organic Treatment:** Recommend one organic method for a Nigerian farmer.
+            5. **Chemical Treatment:** Recommend one chemical method.
             **IMPORTANT: Do not apologize for image quality. Provide the best possible diagnosis.**
-
             ---SUGGESTIONS---
-
             **Part 2: Suggested Follow-up Questions**
             Based on your diagnosis, provide three brief, insightful follow-up questions a user might ask. 
             **IMPORTANT: The questions must be answerable with text only. Do not suggest showing images or videos.**
@@ -164,29 +161,23 @@ def diagnose_plant_issue(image_file, crop_type):
         ]
         response = gemini_model_vision.generate_content(prompt_parts)
         full_response = response.text
-
         if "---SUGGESTIONS---" in full_response:
             report_text, suggestions_text = full_response.split("---SUGGESTIONS---", 1)
             title_line = report_text.strip().split('\n')[0]
             title = title_line.replace('**Title:**', '').strip() if '**Title:**' in title_line else f"Diagnosis for {crop_type}"
             suggestions = [s.strip() for s in suggestions_text.strip().split('\n') if s.strip() and s.strip().startswith(('1', '2', '3', '- '))]
         else:
-            report_text = full_response
-            title = f"General Diagnosis for {crop_type}"
-            suggestions = []
-            
+            report_text, title, suggestions = full_response, f"General Diagnosis for {crop_type}", []
         report_html = markdown.markdown(report_text, extensions=['tables'])
         return title, report_html, suggestions
-
     except Exception as e:
         print(f"An error occurred during Gemini image analysis: {e}")
         return "Error", "<p class='error-message'>Sorry, an error occurred while analyzing the image.</p>", []
 
-# --- WEBSITE ROUTES (Simplified and Stable) ---
+# --- WEBSITE ROUTES ---
 @app.route('/')
 def home():
-    if current_user.is_authenticated:
-        return redirect(url_for('dashboard'))
+    if current_user.is_authenticated: return redirect(url_for('dashboard'))
     return render_template('index.html')
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -219,7 +210,6 @@ def register():
         flash('Registration successful! Please log in.', 'success')
         return redirect(url_for('login'))
     return render_template('register.html')
-
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -305,30 +295,17 @@ def api_generate():
     data = request.get_json()
     if not all(k in data for k in ['location', 'space', 'budget', 'country', 'currency']):
         return jsonify({'error': 'Missing required fields'}), 400
-
-    plan_html, suggestions = generate_farm_plan(
-        data['location'], data['space'], data['budget'], data['country'], data['currency']
-    )
-    
-    if "Error:" in plan_html:
-        return jsonify({'error': plan_html}), 500
-
+    plan_html, suggestions = generate_farm_plan(data['location'], data['space'], data['budget'], data['country'], data['currency'])
+    if "Error:" in plan_html: return jsonify({'error': plan_html}), 500
     if not current_user.is_authenticated:
         if session.get('free_plan_used'):
             return jsonify({'error': '<p class="error-message">Free plan already used. Please register to continue.</p>'}), 429
         session['free_plan_used'] = True
-        session['guest_plan'] = {
-            'plan_html': plan_html, 'location': data['location'],
-            'country': data['country'], 'currency': data['currency']
-        }
+        session['guest_plan'] = {'plan_html': plan_html, 'location': data['location'], 'country': data['country'], 'currency': data['currency']}
         return jsonify({'plan': plan_html, 'plan_id': None, 'suggestions': suggestions})
-
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute(
-        'INSERT INTO farm_plans (user_id, location, country, currency, plan_html) VALUES (?, ?, ?, ?, ?)',
-        (current_user.id, data['location'], data['country'], data['currency'], plan_html)
-    )
+    cursor.execute('INSERT INTO farm_plans (user_id, location, country, currency, plan_html) VALUES (?, ?, ?, ?, ?)', (current_user.id, data['location'], data['country'], data['currency'], plan_html))
     plan_id = cursor.lastrowid
     conn.commit()
     conn.close()
@@ -340,20 +317,15 @@ def api_generate():
 def api_diagnose():
     if 'plant_image' not in request.files or 'crop_type' not in request.form:
         return jsonify({'error': 'Missing file or crop type'}), 400
-
     file, crop_type = request.files['plant_image'], request.form['crop_type']
     if file.filename == '' or not crop_type:
         return jsonify({'error': 'No selected file or crop type'}), 400
-
     if file and allowed_file(file.filename):
         title, report_html, suggestions = diagnose_plant_issue(file, crop_type)
         if "Error" in title: return jsonify({'error': report_html}), 500
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute(
-            'INSERT INTO diagnoses (user_id, title, crop_type, report_html) VALUES (?, ?, ?, ?)',
-            (current_user.id, title, crop_type, report_html)
-        )
+        cursor.execute('INSERT INTO diagnoses (user_id, title, crop_type, report_html) VALUES (?, ?, ?, ?)',(current_user.id, title, crop_type, report_html))
         diagnosis_id = cursor.lastrowid
         conn.commit()
         conn.close()
@@ -404,24 +376,18 @@ def api_follow_up():
     data = request.get_json()
     plan_id, question = data.get('plan_id'), data.get('question')
     if not all([plan_id, question]): return jsonify({'error': 'Missing data'}), 400
-
     conn = get_db_connection()
     plan = conn.execute('SELECT * FROM farm_plans WHERE id = ? AND user_id = ?', (plan_id, current_user.id)).fetchone()
     history = conn.execute('SELECT role, content FROM chat_history WHERE plan_id = ? ORDER BY created_at ASC', (plan_id,)).fetchall()
-    
     conn.execute('INSERT INTO chat_history (plan_id, role, content) VALUES (?, ?, ?)', (plan_id, 'user', question))
     conn.commit()
-    
-    # Construct conversation history for Groq
     conversation_history_for_groq = "Initial Plan:\n" + plan['plan_html'] + "\n\n"
     for message in history:
         conversation_history_for_groq += f"{message['role'].capitalize()}: {message['content']}\n"
     conversation_history_for_groq += f"User: {question}"
-
     try:
         response = groq_chat.invoke(conversation_history_for_groq)
         answer = response.content
-        
         conn.execute('INSERT INTO chat_history (plan_id, role, content) VALUES (?, ?, ?)', (plan_id, 'assistant', answer))
         conn.commit()
         conn.close()
@@ -457,26 +423,18 @@ def api_diagnose_follow_up():
     data = request.get_json()
     diagnosis_id, question = data.get('diagnosis_id'), data.get('question')
     if not all([diagnosis_id, question]): return jsonify({'error': 'Missing data'}), 400
-
     conn = get_db_connection()
     diagnosis = conn.execute('SELECT * FROM diagnoses WHERE id = ? AND user_id = ?', (diagnosis_id, current_user.id)).fetchone()
     history = conn.execute('SELECT role, content FROM diagnoses_chat_history WHERE diagnosis_id = ? ORDER BY created_at ASC', (diagnosis_id,)).fetchall()
-    
     conn.execute('INSERT INTO diagnoses_chat_history (diagnosis_id, role, content) VALUES (?, ?, ?)', (diagnosis_id, 'user', question))
     conn.commit()
-    
-    # Construct conversation history for Gemini
-    conversation_for_gemini = [
-        "Initial Diagnosis Report:\n" + diagnosis['report_html']
-    ]
+    conversation_for_gemini = ["Initial Diagnosis Report:\n" + diagnosis['report_html']]
     for message in history:
         conversation_for_gemini.append(f"{message['role'].capitalize()}: {message['content']}")
     conversation_for_gemini.append(f"User: {question}")
-    
     try:
         response = gemini_model_vision.generate_content("\n".join(conversation_for_gemini))
         answer = response.text
-        
         conn.execute('INSERT INTO diagnoses_chat_history (diagnosis_id, role, content) VALUES (?, ?, ?)', (diagnosis_id, 'assistant', answer))
         conn.commit()
         conn.close()

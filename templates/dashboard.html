@@ -4,11 +4,44 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - YieldWise AI</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.googleapis.com ">
+    <link rel="preconnect" href="https://fonts.gstatic.com " crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src=" https://cdn.jsdelivr.net/npm/marked/marked.min.js "></script>
+    <style>
+        /* Additional styles for the showcase link section */
+        .showcase-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+        
+        #showcase-link {
+            flex: 1;
+            min-width: 200px;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: #f9f9f9;
+        }
+        
+        #open-showcase-link {
+            padding: 8px 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        #open-showcase-link:hover {
+            background-color: #45a049;
+        }
+    </style>
 </head>
 <body>
     <div class="dashboard-layout">
@@ -118,8 +151,11 @@
                     </div>
                      <div id="showcase-link-container" class="hidden">
                         <p>Your public showcase page is live!</p>
-                        <input type="text" id="showcase-link" readonly>
-                        <button id="copy-link-button">Copy Link</button>
+                        <div class="showcase-actions">
+                            <input type="text" id="showcase-link" readonly>
+                            <button id="copy-link-button">Copy Link</button>
+                            <a href="#" id="open-showcase-link" target="_blank" class="button secondary-button">Open Showcase</a>
+                        </div>
                     </div>
                     <div id="plan-output" class="plan-content"></div>
 
@@ -156,6 +192,7 @@
             const showcaseLinkContainer = document.getElementById('showcase-link-container');
             const showcaseLinkInput = document.getElementById('showcase-link');
             const copyLinkButton = document.getElementById('copy-link-button');
+            const openShowcaseLink = document.getElementById('open-showcase-link');
 
             // Chat elements
             const chatSection = document.getElementById('chat-section');
@@ -292,6 +329,7 @@
 
                     const link = `${window.location.origin}/showcase/${data.showcase_id}`;
                     showcaseLinkInput.value = link;
+                    openShowcaseLink.href = link;
                     showcaseLinkContainer.classList.remove('hidden');
 
                 } catch (error) {
@@ -418,4 +456,3 @@
     </script>
 </body>
 </html>
-

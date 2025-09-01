@@ -3,34 +3,417 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Farm Plan for {{ plan.location }}</title>
+    <title>Farm Plan Showcase - YieldWise AI</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    
+    <!-- All CSS is now inline for stability -->
+    <style>
+        /* --- GLOBAL & BASE STYLES --- */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f4f7f6;
+            color: #333;
+            margin: 0;
+            line-height: 1.6;
+        }
+
+        .container {
+            background-color: #ffffff;
+            padding: 30px 40px;
+            border-radius: 12px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+            width: 100%;
+            text-align: center;
+            margin: 20px;
+            box-sizing: border-box;
+        }
+        
+        /* --- SHOWCASE PAGE STYLING --- */
+        .showcase-container {
+            max-width: 800px;
+            margin: 40px auto;
+        }
+
+        .showcase-container header h1 {
+            color: #2c6b4f;
+            font-size: 2.2rem;
+        }
+
+        .plan-content {
+            background-color: #ffffff;
+            border: 1px solid #eee;
+            border-radius: 8px;
+            padding: 20px 30px;
+            text-align: left;
+            margin-bottom: 30px;
+        }
+
+        .plan-content table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1em 0;
+        }
+        .plan-content th, .plan-content td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        .plan-content th {
+            background-color: #f9f9f9;
+        }
+
+        footer {
+            margin-top: 40px;
+            text-align: center;
+            color: #888;
+        }
+        
+        footer a {
+            color: #2c6b4f;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .credit {
+             font-size: 0.8rem;
+             color: #999;
+             margin-top: 5px;
+        }
+
+        /* --- MONETIZATION & PRE-ORDER STYLING --- */
+        .pre-order {
+            background-color: #e8f5e9;
+            border: 1px dashed #2c6b4f;
+            border-radius: 8px;
+            padding: 25px;
+            text-align: center;
+            margin-top: 30px;
+        }
+
+        .pre-order h3 {
+            margin-top: 0;
+            color: #2c6b4f;
+        }
+
+        .button {
+            padding: 15px 30px;
+            background-color: #2c6b4f;
+            color: #ffffff;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            display: inline-block;
+            width: auto;
+        }
+        .button:hover {
+            background-color: #245a42;
+            transform: translateY(-2px);
+        }
+
+        /* --- "LOCKED" FEATURE STYLING --- */
+        .pre-order-locked {
+            position: relative;
+            background-color: #f9fafb;
+            border: 1px dashed #d1d5db;
+            border-radius: 8px;
+            padding: 25px;
+            text-align: center;
+            margin-top: 30px;
+            overflow: hidden;
+        }
+        .pre-order-locked h3, .pre-order-locked p { color: #9ca3af; }
+        .lock-overlay {
+            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(4px);
+            display: flex; flex-direction: column;
+            justify-content: center; align-items: center; z-index: 10;
+        }
+        .lock-icon { width: 40px; height: 40px; color: #4b5563; margin-bottom: 10px; }
+        .lock-text { font-weight: 600; color: #374151; font-size: 1.1rem; }
+        .button-disabled {
+            width: auto; padding: 15px 30px; background-color: #e5e7eb;
+            color: #9ca3af; border: none; border-radius: 8px;
+            font-size: 1.1rem; font-weight: 700; cursor: not-allowed;
+            display: inline-block;
+        }
+
+        /* --- SIMPLE, STABLE PAYMENT MODAL STYLING --- */
+        .hidden { display: none !important; }
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(17, 24, 39, 0.8);
+            backdrop-filter: blur(8px);
+            display: flex; justify-content: center; align-items: center;
+            z-index: 50; padding: 20px;
+        }
+        .modal-content {
+            background-color: #ffffff; padding: 40px; border-radius: 12px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            width: 100%; max-width: 500px; position: relative;
+            text-align: center; color: #111827;
+        }
+        .modal-content h3 { font-size: 1.5rem; font-weight: 700; color: #1f2937; margin-top: 0; }
+        .modal-subtitle { color: #4b5563; margin-bottom: 30px; }
+        .close-button {
+            position: absolute; top: 15px; right: 15px;
+            background: none; border: none; font-size: 2rem;
+            color: #9ca3af; cursor: pointer; line-height: 1;
+            width: auto; padding: 0;
+        }
+        .account-details {
+            background-color: #f9fafb; border: 1px solid #e5e7eb;
+            border-radius: 8px; padding: 20px; margin-bottom: 20px;
+        }
+        .detail-item {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 15px 0; border-bottom: 1px solid #e5e7eb;
+        }
+        .detail-item:last-child { border-bottom: none; }
+        .detail-item span { color: #6b7280; }
+        .detail-item strong { font-weight: 600; color: #111827; }
+        .account-number { display: flex; align-items: center; gap: 10px; }
+        #copy-account-button {
+            background-color: #e5e7eb; color: #374151; border: none;
+            padding: 5px 10px; font-size: 0.8rem; border-radius: 6px;
+            cursor: pointer; width: auto;
+        }
+        #copy-account-button:hover { background-color: #d1d5db; }
+        .timer { margin-bottom: 30px; font-size: 0.9rem; color: #4b5563; }
+        .timer strong { color: #dc2626; }
+        #payment-complete-button { background-color: #16a34a; }
+        #payment-complete-button:hover { background-color: #15803d; }
+        
+        /* Animation Styling */
+        .processing-animation {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            padding: 40px 0;
+            min-height: 200px; /* Ensure space for animation */
+            justify-content: center;
+        }
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border-left-color: #2c6b4f;
+            animation: spin 1s infinite linear;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
 </head>
 <body>
     <div class="container showcase-container">
         <header>
             <h1>🌱 A New Farm in {{ plan.location }}</h1>
-            <p>Here's a personalized micro-farm plan, powered by YieldWise AI.</p>
+            <p>Here's a personalized micro-farm plan, powered by YieldWise AI and prepared for {{ plan.user_name }}.</p>
         </header>
 
-        <div class="plan-content">
-            <!-- Use the | safe filter to render the pre-formatted HTML from the database -->
-            {{ plan.plan_html | safe }}
-        </div>
+        <main>
+            <div class="plan-content">
+                {{ plan.plan_html | safe }}
+            </div>
 
-        <div class="pre-order">
-            <h3>Interested in this harvest?</h3>
-            <p>Pre-order fresh, locally grown produce and support a new farmer!</p>
-            <button>Pre-Order My Harvest</button>
-        </div>
+            <div id="promotion-section" class="pre-order">
+                 {% if plan.is_promoted %}
+                    <p style="color: #2c6b4f; font-weight: 700;">⭐ This showcase is promoted!</p>
+                 {% else %}
+                    <h3>🚀 Promote this Showcase for ₦1000</h3>
+                    <p>Get your plan featured and seen by more potential partners and buyers.</p>
+                    <button id="promote-button" class="button">Promote Now</button>
+                 {% endif %}
+            </div>
 
+            <div id="preorder-section" class="pre-order-locked">
+                <div class="lock-overlay">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="lock-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm5-3a3 3 0 00-3 3v2h6V7a3 3 0 00-3-3z" clip-rule="evenodd" /></svg>
+                    <p class="lock-text">Promote your showcase to unlock pre-orders!</p>
+                </div>
+                <h3>Interested in this harvest?</h3>
+                <p>Pre-order fresh, locally grown produce and support a new farmer!</p>
+                <button class="button-disabled">Pre-Order My Harvest</button>
+            </div>
+        </main>
+        
         <footer>
-            <div class="credit">Generated with YieldWise AI</div>
-            <div class="credit">A project by Onyeka Nwokike</div>
+            <p>Generated with <a href="{{ url_for('home') }}">YieldWise AI</a></p>
+            <p class="credit">A project by Onyeka Nwokike</p>
         </footer>
     </div>
+
+    <!-- Secure Payment Modal -->
+    <div id="payment-modal" class="modal-overlay hidden">
+        <div id="modal-content-container" class="modal-content">
+            <!-- Content will be dynamically injected by JavaScript -->
+        </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const promoteButton = document.getElementById('promote-button');
+            const modal = document.getElementById('payment-modal');
+            const modalContentContainer = document.getElementById('modal-content-container');
+            
+            // Template for the initial step (country selection)
+            const countrySelectorHTML = `
+                <button id="close-modal" class="close-button">&times;</button>
+                <h3>Secure Payment Gateway</h3>
+                <p class="modal-subtitle">Please select your country to begin the transaction.</p>
+                <div style="text-align: left; margin-bottom: 20px;">
+                    <label for="country-select" style="display: block; font-weight: 600; margin-bottom: 8px;">Country</label>
+                    <select id="country-select" style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem;">
+                        <option>Nigeria</option>
+                        <option>Kenya</option>
+                        <option>Ghana</option>
+                        <option>South Africa</option>
+                    </select>
+                </div>
+                <button id="start-payment-button" class="button">Continue</button>
+            `;
+
+            if (promoteButton) {
+                promoteButton.addEventListener('click', () => {
+                    modalContentContainer.innerHTML = countrySelectorHTML;
+                    modal.classList.remove('hidden');
+                    addModalEventListeners();
+                });
+            }
+
+            function addModalEventListeners() {
+                const closeModalButton = document.getElementById('close-modal');
+                const startPaymentButton = document.getElementById('start-payment-button');
+                
+                closeModalButton.addEventListener('click', () => {
+                    modal.classList.add('hidden');
+                    clearInterval(timerInterval);
+                });
+
+                if (startPaymentButton) {
+                    startPaymentButton.addEventListener('click', runPaymentSimulation);
+                }
+            }
+
+            function runPaymentSimulation() {
+                // Step 1: Show "Generating Account" animation
+                modalContentContainer.innerHTML = `
+                    <div class="processing-animation">
+                        <div class="spinner"></div>
+                        <p>Generating secure one-time account...</p>
+                    </div>
+                `;
+
+                // Step 2: After a delay, show the final payment details
+                setTimeout(() => {
+                    modalContentContainer.innerHTML = `
+                        <button id="close-modal" class="close-button">&times;</button>
+                        <h3>Secure Bank Transfer</h3>
+                        <p class="modal-subtitle">To complete the promotion, please transfer ₦1000 to the secure account below.</p>
+                        <div class="account-details">
+                            <div class="detail-item">
+                                <span>Bank Name</span>
+                                <strong>Palmpay / OPay / Moniepoint</strong>
+                            </div>
+                             <div class="detail-item">
+                                <span>Account Name</span>
+                                <strong>Onyeka Nwokike</strong>
+                            </div>
+                            <div class="detail-item">
+                                <span>Account Number</span>
+                                <div class="account-number">
+                                    <strong id="account-number">9069071922</strong>
+                                    <button id="copy-account-button">Copy</button>
+                                </div>
+                            </div>
+                            <div class="detail-item">
+                                <span>Amount</span>
+                                <strong>₦1000.00</strong>
+                            </div>
+                        </div>
+                        <div class="timer">
+                            <p>This account number will expire in: <strong id="countdown">60:00</strong></p>
+                        </div>
+                        <button id="payment-complete-button" class="button">Confirm Payment</button>
+                    `;
+                    // Re-add event listeners for the new content
+                    addFinalPaymentEventListeners();
+                    startTimer(59 * 60 + 59);
+                }, 2500); // 2.5 second delay
+            }
+
+            function addFinalPaymentEventListeners() {
+                const closeModalButton = document.getElementById('close-modal');
+                const copyAccountButton = document.getElementById('copy-account-button');
+                const accountNumberEl = document.getElementById('account-number');
+                const paymentCompleteButton = document.getElementById('payment-complete-button');
+                const planId = {{ plan.id }}; // Get plan ID from Jinja
+
+                closeModalButton.addEventListener('click', () => {
+                    modal.classList.add('hidden');
+                    clearInterval(timerInterval);
+                });
+
+                copyAccountButton.addEventListener('click', () => {
+                    navigator.clipboard.writeText(accountNumberEl.textContent).then(() => {
+                        copyAccountButton.textContent = 'Copied!';
+                        setTimeout(() => { copyAccountButton.textContent = 'Copy'; }, 2000);
+                    });
+                });
+
+                paymentCompleteButton.addEventListener('click', () => {
+                    const subject = encodeURIComponent(`Payment Confirmation for YieldWise Showcase Promotion (Plan ID: ${planId})`);
+                    const body = encodeURIComponent(`Hello YieldWise Team,\n\nI have made the payment of ₦1000 to promote my showcase (Plan ID: ${planId}).\n\nPlease confirm and activate the promotion.\n\nThank you,\n{{ plan.user_name }}`);
+                    window.location.href = `mailto:nwokikeonyeka@gmail.com?subject=${subject}&body=${body}`;
+                    
+                    // We can also optimistically unlock for a better demo experience
+                    // alert("Please send the generated email to confirm your payment. Your features will be unlocked upon confirmation.");
+                    // modal.classList.add('hidden');
+                    // clearInterval(timerInterval);
+                    // unlockFeatures(); 
+                });
+            }
+
+            let timerInterval;
+            function startTimer(duration) {
+                let timer = duration, minutes, seconds;
+                clearInterval(timerInterval);
+                timerInterval = setInterval(function () {
+                    minutes = parseInt(timer / 60, 10);
+                    seconds = parseInt(timer % 60, 10);
+                    minutes = minutes < 10 ? "0" + minutes : minutes;
+                    seconds = seconds < 10 ? "0" + seconds : seconds;
+                    const countdownEl = document.getElementById('countdown');
+                    if (countdownEl) countdownEl.textContent = minutes + ":" + seconds;
+                    if (--timer < 0) {
+                        clearInterval(timerInterval);
+                        if (countdownEl) countdownEl.textContent = "Expired";
+                    }
+                }, 1000);
+            }
+
+            // This function is ready for when the backend can confirm payment
+            /*
+            function unlockFeatures() {
+                const promotionSection = document.getElementById('promotion-section');
+                const preorderSection = document.getElementById('preorder-section');
+                promotionSection.innerHTML = `<p style="color: #2c6b4f; font-weight: 700;">⭐ Your showcase is now promoted!</p>`;
+                preorderSection.classList.remove('pre-order-locked');
+                preorderSection.classList.add('pre-order');
+                preorderSection.querySelector('.lock-overlay').remove();
+                const preorderButton = preorderSection.querySelector('.button-disabled');
+                preorderButton.classList.remove('button-disabled');
+                preorderButton.classList.add('button');
+                preorderButton.onclick = () => alert('Pre-order functionality is now active! (This is a demo)');
+            }
+            */
+        });
+    </script>
 </body>
 </html>
+
