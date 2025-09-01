@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YieldWise AI - Your Personal Farm Planner</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+    <div class="landing-container">
+        <nav class="main-nav">
+            <div class="logo">🌱 YieldWise AI</div>
+            <div class="nav-links">
+                <a href="{{ url_for('login') }}" class="nav-button secondary">Log In</a>
+                <a href="{{ url_for('register') }}" class="nav-button">Register</a>
+            </div>
+        </nav>
+
+        <header class="landing-header">
+            <h1>Turn Your Space Into Profit</h1>
+            <p>Get a free, AI-powered business plan for your micro-farm in 60 seconds. Then, create a free account to unlock our full suite of tools, including an AI Plant Doctor to diagnose crop issues from a photo.</p>
+        </header>
+
+        <main>
+            <div class="container auth-container">
+                 <form id="plan-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="country">Country</label>
+                            <select id="country" name="country">
+                                <option value="Nigeria">Nigeria</option>
+                                <option value="Kenya">Kenya</option>
+                                <option value="Ghana">Ghana</option>
+                                <option value="South Africa">South Africa</option>
+                                <option value="United States">United States</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="currency">Currency</label>
+                            <select id="currency" name="currency">
+                                <option value="NGN">NGN</option>
+                                <option value="KES">KES</option>
+                                <option value="GHS">GHS</option>
+                                <option value="ZAR">ZAR</option>
+                                <option value="USD">USD</option>
+                                <option value="EUR">EUR</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="location">City / Location</label>
+                        <input type="text" id="location" name="location" placeholder="e.g., Ikeja, Lagos" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="space">Available Space</label>
+                        <input type="text" id="space" name="space" placeholder="e.g., 2 square meters on my balcony" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="budget">Starting Budget</label>
+                        <input type="number" id="budget" name="budget" placeholder="e.g., 7000" required>
+                    </div>
+                    <button type="submit" id="generate-button">Generate My Free Plan</button>
+                </form>
+
+                <div id="results-container" class="hidden">
+                    <div id="plan-output" class="plan-content"></div>
+                    <div id="login-prompt" class="login-prompt hidden">
+                        <h3>Unlock Your Full Dashboard!</h3>
+                        <p>Your plan is ready. Create a free account to save this plan, download it as a PDF, and create a public showcase page.</p>
+                        <a href="{{ url_for('register') }}" class="button">Create Free Account & Save Plan</a>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const planForm = document.getElementById('plan-form');
+            const generateButton = document.getElementById('generate-button');
+            const resultsContainer = document.getElementById('results-container');
+            const planOutput = document.getElementById('plan-output');
+            const loginPrompt = document.getElementById('login-prompt');
+
+            planForm.addEventListener('submit', async function(event) {
+                event.preventDefault();
+                
+                generateButton.textContent = 'Generating...';
+                generateButton.disabled = true;
+                resultsContainer.classList.remove('hidden');
+                planOutput.innerHTML = '<p class="loading">Your personal AI agronomist is analyzing local data...</p>';
+                loginPrompt.classList.add('hidden');
+
+                const formData = new FormData(planForm);
+                const data = {
+                    location: formData.get('location'),
+                    space: formData.get('space'),
+                    budget: formData.get('budget'),
+                    country: formData.get('country'),
+                    currency: formData.get('currency'),
+                };
+
+                try {
+                    const response = await fetch('/api/generate', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(data)
+                    });
+
+                    const result = await response.json();
+
+                    if (!response.ok) {
+                        const errorHtml = result.error.includes('<p') ? result.error : `<p class="error-message">${result.error}</p>`;
+                        planOutput.innerHTML = errorHtml;
+                    } else {
+                        planOutput.innerHTML = result.plan;
+                        loginPrompt.classList.remove('hidden');
+                    }
+                } catch (error) {
+                    planOutput.innerHTML = `<p class="error-message">A network error occurred. Please try again.</p>`;
+                } finally {
+                    generateButton.textContent = 'Generate My Free Plan';
+                    generateButton.disabled = false;
+                }
+            });
+        });
+    </script>
+</body>
+</html>
+

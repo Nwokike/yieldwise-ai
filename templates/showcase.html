@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Farm Plan for {{ plan.location }}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container showcase-container">
+        <header>
+            <h1>🌱 A New Farm in {{ plan.location }}</h1>
+            <p>Here's a personalized micro-farm plan, powered by YieldWise AI.</p>
+        </header>
+
+        <div class="plan-content">
+            <!-- Use the | safe filter to render the pre-formatted HTML from the database -->
+            {{ plan.plan_html | safe }}
+        </div>
+
+        <div class="pre-order">
+            <h3>Interested in this harvest?</h3>
+            <p>Pre-order fresh, locally grown produce and support a new farmer!</p>
+            <button>Pre-Order My Harvest</button>
+        </div>
+
+        <footer>
+            <div class="credit">Generated with YieldWise AI</div>
+            <div class="credit">A project by Onyeka Nwokike</div>
+        </footer>
+    </div>
+</body>
+</html>

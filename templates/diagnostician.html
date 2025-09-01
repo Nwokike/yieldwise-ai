@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Diagnostician - YieldWise AI</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="dashboard-layout">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>🌱 YieldWise AI</h2>
+            </div>
+            
+            <a href="{{ url_for('dashboard') }}" class="tool-link">
+                <span class="tool-title">📝 AI Farm Planner</span>
+                <span class="tool-hint">Generate and manage your farm plans.</span>
+            </a>
+            <a href="{{ url_for('diagnostician') }}" class="tool-link active">
+                <span class="tool-title">🔬 AI Diagnostician</span>
+                <span class="tool-hint">Diagnose issues from a photo.</span>
+            </a>
+
+            <div class="plan-history">
+                <h3>My Farm Plans</h3>
+                <ul id="plan-history-list">
+                    {% if plans %}
+                        {% for plan in plans %}
+                        <li><a href="{{ url_for('dashboard') }}?plan_id={{ plan.id }}" class="plan-link">
+                            <span class="plan-location">{{ plan.location }}</span>
+                            <span class="plan-date">{{ plan.created_at | dateformat }}</span>
+                        </a></li>
+                        {% endfor %}
+                    {% else %}
+                        <li><p>No plans yet.</p></li>
+                    {% endif %}
+                </ul>
+            </div>
+             <div class="plan-history">
+                <h3>My Diagnoses</h3>
+                <ul id="diagnoses-history-list">
+                    {% if diagnoses %}
+                        {% for diagnosis in diagnoses %}
+                        <li data-diagnosis-id="{{ diagnosis.id }}">
+                             <a href="#" class="diagnosis-link">
+                                <span class="plan-location">{{ diagnosis.title }}</span>
+                                <!-- THIS IS THE BUG FIX -->
+                                <span class="plan-date">{{ diagnosis.created_at | dateformat }}</span>
+                            </a>
+                            <button class="delete-diagnosis-button" title="Delete Diagnosis">🗑️</button>
+                        </li>
+                        {% endfor %}
+                    {% else %}
+                        <li id="no-diagnoses-message"><p>No diagnoses yet.</p></li>
+                    {% endif %}
+                </ul>
+            </div>
+
+            <div class="sidebar-footer">
+                <a href="https://docs.google.com/forms/d/e/1FAIpQLSc7f7jAJE7cNxTrdzgdKWiCaineMDuQ4Ka7Jziu9LlBVAslgA/viewform?usp=sf_link" target="_blank" class="feedback-button">Share Feedback</a>
+                <a href="{{ url_for('logout') }}" class="logout-button">Log Out</a>
+                <p class="credit">A project by Onyeka Nwokike</p>
+            </div>
+        </aside>
+        <main class="main-content">
+            <div class="container">
+                <header>
+                    <h1>🔬 AI Pest & Disease Diagnostician</h1>
+                    <p>Upload a photo of an affected plant leaf to get an instant diagnosis and treatment plan.</p>
+                </header>
+
+                <form id="diagnose-form" enctype="multipart/form-data">
+                    <div class="form-group">
+                        <label for="crop_type">What type of crop is this?</label>
+                        <input type="text" id="crop_type" name="crop_type" placeholder="e.g., Tomato, Maize, Cassava" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="plant_image">Upload Plant Image</label>
+                        <input type="file" id="plant_image" name="plant_image" accept="image/png, image/jpeg, image/jpg" required>
+                    </div>
+                    <button type="submit" id="diagnose-button">Diagnose My Plant</button>
+                </form>
+
+                <div id="results-container" class="hidden">
+                    <h2 id="diagnosis-title">AI Diagnosis Report</h2>
+                    <div id="plan-output" class="plan-content"></div>
+
+                    <div id="chat-section" class="chat-section hidden">
+                        <div id="chat-history" class="chat-history"></div>
+                        <div id="suggested-questions" class="suggested-questions"></div>
+                        <form id="follow-up-form" class="follow-up-form">
+                            <input type="text" id="follow-up-input" placeholder="Ask a follow-up question..." autocomplete="off" required>
+                            <button type="submit">Send</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // State
+            let currentDiagnosisId = null;
+
+            const diagnoseForm = document.getElementById('diagnose-form');
+            const diagnoseButton = document.getElementById('diagnose-button');
+            const resultsContainer = document.getElementById('results-container');
+            const planOutput = document.getElementById('plan-output');
+            const diagnosisTitle = document.getElementById('diagnosis-title');
+
+            const chatSection = document.getElementById('chat-section');
+            const chatHistory = document.getElementById('chat-history');
+            const suggestedQuestions = document.getElementById('suggested-questions');
+            const followUpForm = document.getElementById('follow-up-form');
+            const followUpInput = document.getElementById('follow-up-input');
+            
+            const diagnosesHistoryList = document.getElementById('diagnoses-history-list');
+            const noDiagnosesMessage = document.getElementById('no-diagnoses-message');
+            
+            // --- MAIN DIAGNOSIS GENERATION ---
+            diagnoseForm.addEventListener('submit', async function(event) {
+                event.preventDefault();
+                resetUI();
+
+                diagnoseButton.textContent = '🔬 Analyzing...';
+                diagnoseButton.disabled = true;
+                resultsContainer.classList.remove('hidden');
+                planOutput.innerHTML = '<p class="loading">Your AI plant doctor is analyzing the image...</p>';
+
+                const formData = new FormData(diagnoseForm);
+
+                try {
+                    const response = await fetch('/api/diagnose', {
+                        method: 'POST',
+                        body: formData,
+                    });
+                    const data = await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(data.error || 'An unknown error occurred.');
+                    }
+                    
+                    currentDiagnosisId = data.diagnosis_id;
+                    updateDiagnosisView(data.title, data.diagnosis, data.suggestions);
+                    
+                    // Instantly update history list
+                    const newDiagnosisItem = createHistoryListItem(data.diagnosis_id, data.title);
+                    if (noDiagnosesMessage) noDiagnosesMessage.style.display = 'none';
+                    diagnosesHistoryList.prepend(newDiagnosisItem);
+                    highlightActiveDiagnosis(data.diagnosis_id);
+
+                } catch (error) {
+                    planOutput.innerHTML = `<p class="error-message">${error.message}</p>`;
+                } finally {
+                    diagnoseButton.textContent = 'Diagnose My Plant';
+                    diagnoseButton.disabled = false;
+                }
+            });
+            
+            // --- HISTORY & DIAGNOSIS VIEWING/DELETION ---
+             diagnosesHistoryList.addEventListener('click', async function(event) {
+                const target = event.target.closest('.diagnosis-link, .delete-diagnosis-button');
+                if (!target) return;
+
+                const listItem = target.closest('li');
+                const diagnosisId = listItem.dataset.diagnosisId;
+
+                if (target.classList.contains('diagnosis-link')) {
+                    event.preventDefault();
+                    await loadDiagnosis(diagnosisId);
+                }
+
+                if (target.classList.contains('delete-diagnosis-button')) {
+                    if (confirm('Are you sure you want to delete this diagnosis?')) {
+                        await deleteDiagnosis(diagnosisId, listItem);
+                    }
+                }
+            });
+
+            async function loadDiagnosis(diagnosisId) {
+                try {
+                    resetUI();
+                    resultsContainer.classList.remove('hidden');
+                    planOutput.innerHTML = '<p class="loading">Loading diagnosis...</p>';
+
+                    const response = await fetch(`/api/get_diagnosis/${diagnosisId}`);
+                    if (!response.ok) throw new Error('Could not load the selected diagnosis.');
+                    
+                    const data = await response.json();
+                    currentDiagnosisId = data.diagnosis.id;
+
+                    updateDiagnosisView(data.diagnosis.title, data.diagnosis.report_html, []);
+                    
+                    // Load chat history
+                    chatHistory.innerHTML = '';
+                    data.chat_history.forEach(msg => appendMessage(msg.role, msg.content)); 
+
+                    highlightActiveDiagnosis(diagnosisId);
+
+                } catch (error) {
+                    planOutput.innerHTML = `<p class="error-message">${error.message}</p>`;
+                }
+            }
+            
+            async function deleteDiagnosis(diagnosisId, listItem) {
+                 try {
+                    const response = await fetch(`/api/delete_diagnosis/${diagnosisId}`, { method: 'DELETE' });
+                    if (!response.ok) throw new Error('Could not delete the diagnosis.');
+                    
+                    listItem.remove();
+                    if (diagnosesHistoryList.children.length === 1 && noDiagnosesMessage) { 
+                         noDiagnosesMessage.style.display = 'block';
+                    }
+                    resetUI();
+                } catch (error) {
+                    alert(error.message);
+                }
+            }
+            
+            // --- CHAT & FOLLOW-UP ---
+            followUpForm.addEventListener('submit', async function(event) {
+                event.preventDefault();
+                const question = followUpInput.value;
+                if (!question || !currentDiagnosisId) return;
+
+                appendMessage('user', question);
+                followUpInput.value = '';
+                suggestedQuestions.innerHTML = ''; // Clear suggestions
+                
+                try {
+                    const response = await fetch('/api/diagnose_follow_up', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ diagnosis_id: currentDiagnosisId, question: question }),
+                    });
+                    if (!response.ok) throw new Error('Failed to get a response from the AI.');
+                    
+                    const data = await response.json();
+                    appendMessage('assistant', data.answer);
+                } catch (error) {
+                    appendMessage('assistant', `<p class="error-message">${error.message}</p>`);
+                }
+            });
+            
+            suggestedQuestions.addEventListener('click', function(event) {
+                if(event.target.classList.contains('suggested-question')) {
+                    followUpInput.value = event.target.textContent;
+                    followUpForm.dispatchEvent(new Event('submit'));
+                }
+            });
+            
+            // --- HELPER FUNCTIONS ---
+            function updateDiagnosisView(title, reportHtml, suggestions) {
+                diagnosisTitle.textContent = title;
+                planOutput.innerHTML = reportHtml;
+                chatSection.classList.remove('hidden');
+                
+                suggestedQuestions.innerHTML = '';
+                suggestions.forEach(q => {
+                    const button = document.createElement('button');
+                    button.className = 'suggested-question';
+                    button.textContent = q.replace(/^\d+\.\s*/, ''); // Remove numbering
+                    suggestedQuestions.appendChild(button);
+                });
+            }
+
+            function appendMessage(role, content) {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `chat-message ${role}`;
+                messageDiv.innerHTML = content;
+                chatHistory.appendChild(messageDiv);
+                chatHistory.scrollTop = chatHistory.scrollHeight;
+            }
+            
+            function resetUI() {
+                resultsContainer.classList.add('hidden');
+                planOutput.innerHTML = '';
+                chatHistory.innerHTML = '';
+                suggestedQuestions.innerHTML = '';
+                currentDiagnosisId = null;
+                document.querySelectorAll('#diagnoses-history-list li').forEach(li => li.classList.remove('active'));
+            }
+
+            function createHistoryListItem(id, title) {
+                const li = document.createElement('li');
+                li.dataset.diagnosisId = id;
+
+                const a = document.createElement('a');
+                a.href = '#';
+                a.className = 'diagnosis-link';
+
+                const titleSpan = document.createElement('span');
+                titleSpan.className = 'plan-location';
+                titleSpan.textContent = title;
+
+                const dateSpan = document.createElement('span');
+                dateSpan.className = 'plan-date';
+                const today = new Date();
+                dateSpan.textContent = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+                
+                a.appendChild(titleSpan);
+                a.appendChild(dateSpan);
+                li.appendChild(a);
+
+                const button = document.createElement('button');
+                button.className = 'delete-diagnosis-button';
+                button.title = 'Delete Diagnosis';
+                button.textContent = '🗑️';
+                li.appendChild(button);
+
+                return li;
+            }
+            
+            function highlightActiveDiagnosis(diagnosisId) {
+                document.querySelectorAll('#diagnoses-history-list li').forEach(li => {
+                    li.classList.toggle('active', li.dataset.diagnosisId == diagnosisId);
+                });
+            }
+
+            // Check for a diagnosis ID in the URL on page load
+            const urlParams = new URLSearchParams(window.location.search);
+            const diagnosisIdFromUrl = urlParams.get('id');
+if (diagnosisIdFromUrl) {
+    loadDiagnosis(diagnosisIdFromUrl);
+}
+        });
+    </script>
+</body>
+</html>
+
