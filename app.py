@@ -295,6 +295,21 @@ def api_generate():
     data = request.get_json()
     if not all(k in data for k in ['location', 'space', 'budget', 'country', 'currency']):
         return jsonify({'error': 'Missing required fields'}), 400
+    
+    # Enhanced validation
+    try:
+        budget = float(data['budget'])
+        if budget <= 0:
+            return jsonify({'error': 'Budget must be a positive number'}), 400
+    except (ValueError, TypeError):
+        return jsonify({'error': 'Invalid budget format'}), 400
+    
+    if len(data['location'].strip()) < 2:
+        return jsonify({'error': 'Location must be at least 2 characters'}), 400
+    
+    if len(data['space'].strip()) < 5:
+        return jsonify({'error': 'Please provide more details about your available space'}), 400
+    
     plan_html, suggestions = generate_farm_plan(data['location'], data['space'], data['budget'], data['country'], data['currency'])
     if "Error:" in plan_html: return jsonify({'error': plan_html}), 500
     if not current_user.is_authenticated:
@@ -320,6 +335,19 @@ def api_diagnose():
     file, crop_type = request.files['plant_image'], request.form['crop_type']
     if file.filename == '' or not crop_type:
         return jsonify({'error': 'No selected file or crop type'}), 400
+    
+    # Enhanced validation
+    if len(crop_type.strip()) < 2:
+        return jsonify({'error': 'Crop type must be at least 2 characters'}), 400
+    
+    # Check file size (5MB limit)
+    file.seek(0, 2)  # Seek to end
+    file_size = file.tell()
+    file.seek(0)  # Reset to beginning
+    
+    if file_size > 5 * 1024 * 1024:  # 5MB
+        return jsonify({'error': 'Image size must be less than 5MB'}), 400
+    
     if file and allowed_file(file.filename):
         title, report_html, suggestions = diagnose_plant_issue(file, crop_type)
         if "Error" in title: return jsonify({'error': report_html}), 500
@@ -339,7 +367,14 @@ def api_create_showcase():
     data = request.get_json()
     plan_id = data.get('plan_id')
     if not plan_id: return jsonify({'error': 'Plan ID is required'}), 400
+    
+    # Validate plan ownership
     conn = get_db_connection()
+    plan = conn.execute('SELECT * FROM farm_plans WHERE id = ? AND user_id = ?', (plan_id, current_user.id)).fetchone()
+    if not plan:
+        conn.close()
+        return jsonify({'error': 'Plan not found or access denied'}), 404
+    
     existing = conn.execute('SELECT showcase_id FROM farm_plans WHERE id = ? AND user_id = ?', (plan_id, current_user.id)).fetchone()
     if existing and existing['showcase_id']:
         conn.close()
@@ -349,6 +384,50 @@ def api_create_showcase():
     conn.commit()
     conn.close()
     return jsonify({'showcase_id': showcase_id})
+
+@app.route('/api/search_plans', methods=['GET'])
+@login_required
+def api_search_plans():
+    query = request.args.get('q', '').strip()
+    if not query:
+        return jsonify({'plans': []})
+    
+    conn = get_db_connection()
+    plans = conn.execute(
+        'SELECT * FROM farm_plans WHERE user_id = ? AND location LIKE ? ORDER BY created_at DESC LIMIT 10',
+        (current_user.id, f'%{query}%')
+    ).fetchall()
+    conn.close()
+    
+    return jsonify({'plans': [dict(plan) for plan in plans]})
+
+@app.route('/api/export_data', methods=['GET'])
+@login_required
+def api_export_data():
+    """Export user's data as JSON"""
+    conn = get_db_connection()
+    
+    # Get user's plans
+    plans = conn.execute('SELECT * FROM farm_plans WHERE user_id = ?', (current_user.id,)).fetchall()
+    
+    # Get user's diagnoses
+    diagnoses = conn.execute('SELECT * FROM diagnoses WHERE user_id = ?', (current_user.id,)).fetchall()
+    
+    conn.close()
+    
+    export_data = {
+        'user': {
+            'name': current_user.name,
+            'email': current_user.email
+        },
+        'plans': [dict(plan) for plan in plans],
+        'diagnoses': [dict(diagnosis) for diagnosis in diagnoses],
+        'exported_at': datetime.now().isoformat()
+    }
+    
+    response = make_response(jsonify(export_data))
+    response.headers['Content-Disposition'] = f'attachment; filename=yieldwise_data_{current_user.id}.json'
+    return response
 
 @app.route('/api/get_plan/<int:plan_id>', methods=['GET'])
 @login_required
@@ -364,6 +443,12 @@ def get_plan(plan_id):
 @login_required
 def delete_plan(plan_id):
     conn = get_db_connection()
+    # Verify ownership before deletion
+    plan = conn.execute('SELECT * FROM farm_plans WHERE id = ? AND user_id = ?', (plan_id, current_user.id)).fetchone()
+    if not plan:
+        conn.close()
+        return jsonify({'error': 'Plan not found or access denied'}), 404
+    
     conn.execute('DELETE FROM chat_history WHERE plan_id = ?', (plan_id,))
     conn.execute('DELETE FROM farm_plans WHERE id = ? AND user_id = ?', (plan_id, current_user.id))
     conn.commit()
@@ -376,8 +461,17 @@ def api_follow_up():
     data = request.get_json()
     plan_id, question = data.get('plan_id'), data.get('question')
     if not all([plan_id, question]): return jsonify({'error': 'Missing data'}), 400
+    
+    # Validate question length
+    if len(question.strip()) < 3:
+        return jsonify({'error': 'Question must be at least 3 characters'}), 400
+    
     conn = get_db_connection()
     plan = conn.execute('SELECT * FROM farm_plans WHERE id = ? AND user_id = ?', (plan_id, current_user.id)).fetchone()
+    if not plan:
+        conn.close()
+        return jsonify({'error': 'Plan not found or access denied'}), 404
+    
     history = conn.execute('SELECT role, content FROM chat_history WHERE plan_id = ? ORDER BY created_at ASC', (plan_id,)).fetchall()
     conn.execute('INSERT INTO chat_history (plan_id, role, content) VALUES (?, ?, ?)', (plan_id, 'user', question))
     conn.commit()
@@ -411,6 +505,12 @@ def get_diagnosis(diagnosis_id):
 @login_required
 def delete_diagnosis(diagnosis_id):
     conn = get_db_connection()
+    # Verify ownership before deletion
+    diagnosis = conn.execute('SELECT * FROM diagnoses WHERE id = ? AND user_id = ?', (diagnosis_id, current_user.id)).fetchone()
+    if not diagnosis:
+        conn.close()
+        return jsonify({'error': 'Diagnosis not found or access denied'}), 404
+    
     conn.execute('DELETE FROM diagnoses_chat_history WHERE diagnosis_id = ?', (diagnosis_id,))
     conn.execute('DELETE FROM diagnoses WHERE id = ? AND user_id = ?', (diagnosis_id, current_user.id))
     conn.commit()
@@ -423,8 +523,17 @@ def api_diagnose_follow_up():
     data = request.get_json()
     diagnosis_id, question = data.get('diagnosis_id'), data.get('question')
     if not all([diagnosis_id, question]): return jsonify({'error': 'Missing data'}), 400
+    
+    # Validate question length
+    if len(question.strip()) < 3:
+        return jsonify({'error': 'Question must be at least 3 characters'}), 400
+    
     conn = get_db_connection()
     diagnosis = conn.execute('SELECT * FROM diagnoses WHERE id = ? AND user_id = ?', (diagnosis_id, current_user.id)).fetchone()
+    if not diagnosis:
+        conn.close()
+        return jsonify({'error': 'Diagnosis not found or access denied'}), 404
+    
     history = conn.execute('SELECT role, content FROM diagnoses_chat_history WHERE diagnosis_id = ? ORDER BY created_at ASC', (diagnosis_id,)).fetchall()
     conn.execute('INSERT INTO diagnoses_chat_history (diagnosis_id, role, content) VALUES (?, ?, ?)', (diagnosis_id, 'user', question))
     conn.commit()
@@ -443,6 +552,24 @@ def api_diagnose_follow_up():
         conn.close()
         print(f"An error occurred in diagnosis follow-up: {e}")
         return jsonify({'error': 'Sorry, an error occurred.'}), 500
+
+# --- HEALTH CHECK ENDPOINT ---
+@app.route('/api/health', methods=['HEAD', 'GET'])
+def health_check():
+    return jsonify({'status': 'healthy', 'timestamp': datetime.now().isoformat()})
+
+# --- ERROR HANDLERS ---
+@app.errorhandler(404)
+def not_found_error(error):
+    return render_template('404.html'), 404
+
+@app.errorhandler(500)
+def internal_error(error):
+    return render_template('500.html'), 500
+
+@app.errorhandler(413)
+def too_large(error):
+    return jsonify({'error': 'File too large. Maximum size is 16MB.'}), 413
 
 # --- MAIN EXECUTION BLOCK ---
 # --- MAIN EXECUTION BLOCK ---

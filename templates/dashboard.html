@@ -8,6 +8,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com " crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="{{ url_for('static', filename='js/utils.js') }}"></script>
     <script src=" https://cdn.jsdelivr.net/npm/marked/marked.min.js "></script>
     <style>
         /* Additional styles for the showcase link section */
@@ -141,6 +142,9 @@
                         <label for="budget">Starting Budget</label>
                         <input type="number" id="budget" name="budget" placeholder="e.g., 7000" required>
                     </div>
+                    <div class="progress-bar hidden" id="generation-progress">
+                        <div class="progress-fill"></div>
+                    </div>
                     <button type="submit" id="generate-button">Generate Plan</button>
                 </form>
 
@@ -180,6 +184,7 @@
             // Main form elements
             const planForm = document.getElementById('plan-form');
             const generateButton = document.getElementById('generate-button');
+            const progressBar = document.getElementById('generation-progress');
             
             // Results area elements
             const resultsContainer = document.getElementById('results-container');
@@ -210,8 +215,19 @@
                 event.preventDefault();
                 resetUI(false); // Don't clear the form
 
+                // Enhanced loading state
                 generateButton.textContent = 'Generating...';
                 generateButton.disabled = true;
+                progressBar.classList.remove('hidden');
+                
+                // Simulate progress
+                let progress = 0;
+                const progressInterval = setInterval(() => {
+                    progress += Math.random() * 15;
+                    if (progress > 90) progress = 90;
+                    ProgressManager.update('generation-progress', progress);
+                }, 200);
+
                 resultsContainer.classList.remove('hidden');
                 planOutput.innerHTML = '<p class="loading">Your personal AI agronomist is analyzing local data...</p>';
 
@@ -225,16 +241,10 @@
                 };
 
                 try {
-                    const response = await fetch('/api/generate', {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify(data)
-                    });
-                    const result = await response.json();
-
-                    if (!response.ok) {
-                        throw new Error(result.error || 'An unknown error occurred.');
-                    }
+                    const result = await APIManager.post('/api/generate', data);
+                    
+                    // Complete progress
+                    ProgressManager.update('generation-progress', 100);
                     
                     currentPlanId = result.plan_id;
                     updatePlanView(result.plan, result.suggestions);
@@ -244,11 +254,19 @@
                     if (noPlansMessage) noPlansMessage.style.display = 'none';
                     planHistoryList.prepend(newPlanItem);
                     highlightActivePlan(result.plan_id);
+                    
+                    NotificationManager.success('Farm plan generated successfully!');
 
                 } catch (error) {
-                     const errorHtml = error.message.includes('<p') ? error.message : `<p class="error-message">${error.message}</p>`;
+                    const errorHtml = error.message.includes('<p') ? error.message : `<p class="error-message">${error.message}</p>`;
                     planOutput.innerHTML = errorHtml;
+                    NotificationManager.error('Failed to generate plan: ' + error.message);
                 } finally {
+                    clearInterval(progressInterval);
+                    setTimeout(() => {
+                        progressBar.classList.add('hidden');
+                        ProgressManager.reset('generation-progress');
+                    }, 1000);
                     generateButton.textContent = 'Generate Plan';
                     generateButton.disabled = false;
                 }
@@ -277,13 +295,11 @@
             async function loadPlan(planId) {
                 try {
                     resetUI(true);
+                    LoadingManager.show();
                     resultsContainer.classList.remove('hidden');
                     planOutput.innerHTML = '<p class="loading">Loading plan...</p>';
 
-                    const response = await fetch(`/api/get_plan/${planId}`);
-                    if (!response.ok) throw new Error('Could not load the selected plan.');
-                    
-                    const data = await response.json();
+                    const data = await APIManager.get(`/api/get_plan/${planId}`);
                     currentPlanId = data.plan.id;
 
                     updatePlanView(data.plan.plan_html, []);
@@ -293,24 +309,31 @@
                     data.chat_history.forEach(msg => appendMessage(msg.role, msg.content)); 
                     
                     highlightActivePlan(planId);
+                    NotificationManager.success('Plan loaded successfully!');
 
                 } catch (error) {
                     planOutput.innerHTML = `<p class="error-message">${error.message}</p>`;
+                    NotificationManager.error('Failed to load plan: ' + error.message);
+                } finally {
+                    LoadingManager.hide();
                 }
             }
             
             async function deletePlan(planId, listItem) {
-                 try {
-                    const response = await fetch(`/api/delete_plan/${planId}`, { method: 'DELETE' });
-                    if (!response.ok) throw new Error('Could not delete the plan.');
+                try {
+                    LoadingManager.show();
+                    await APIManager.delete(`/api/delete_plan/${planId}`);
                     
                     listItem.remove();
                     if (planHistoryList.children.length === 1 && noPlansMessage) {
                          noPlansMessage.style.display = 'block';
                     }
                     resetUI(true);
+                    NotificationManager.success('Plan deleted successfully!');
                 } catch (error) {
-                    alert(error.message);
+                    NotificationManager.error('Failed to delete plan: ' + error.message);
+                } finally {
+                    LoadingManager.hide();
                 }
             }
 
@@ -318,32 +341,31 @@
             showcaseButton.addEventListener('click', async function() {
                 if (!currentPlanId) return;
                 showcaseButton.textContent = 'Creating...';
+                showcaseButton.disabled = true;
                 try {
-                    const response = await fetch('/api/create_showcase', {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({ plan_id: currentPlanId })
-                    });
-                    const data = await response.json();
-                    if (!response.ok) throw new Error(data.error);
+                    const data = await APIManager.post('/api/create_showcase', { plan_id: currentPlanId });
 
                     const link = `${window.location.origin}/showcase/${data.showcase_id}`;
                     showcaseLinkInput.value = link;
                     openShowcaseLink.href = link;
                     showcaseLinkContainer.classList.remove('hidden');
+                    
+                    NotificationManager.success('Showcase created successfully!');
 
                 } catch (error) {
-                    alert('Could not create showcase link. Please try again.');
+                    NotificationManager.error('Could not create showcase link. Please try again.');
                 } finally {
                     showcaseButton.textContent = '🚀 Create Showcase';
+                    showcaseButton.disabled = false;
                 }
             });
 
-            copyLinkButton.addEventListener('click', function() {
-                showcaseLinkInput.select();
-                document.execCommand('copy');
-                copyLinkButton.textContent = 'Copied!';
-                setTimeout(() => { copyLinkButton.textContent = 'Copy Link'; }, 2000);
+            copyLinkButton.addEventListener('click', async function() {
+                const success = await copyToClipboard(showcaseLinkInput.value);
+                if (success) {
+                    copyLinkButton.textContent = 'Copied!';
+                    setTimeout(() => { copyLinkButton.textContent = 'Copy Link'; }, 2000);
+                }
             });
             
             // --- CHAT & FOLLOW-UP ---
@@ -357,17 +379,14 @@
                 suggestedQuestions.innerHTML = ''; // Clear suggestions
                 
                 try {
-                    const response = await fetch('/api/follow_up', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ plan_id: currentPlanId, question: question }),
+                    const data = await APIManager.post('/api/follow_up', { 
+                        plan_id: currentPlanId, 
+                        question: question 
                     });
-                    if (!response.ok) throw new Error('Failed to get a response from the AI.');
-                    
-                    const data = await response.json();
                     appendMessage('assistant', data.answer);
                 } catch (error) {
                     appendMessage('assistant', `<p class="error-message">${error.message}</p>`);
+                    NotificationManager.error('Failed to get AI response');
                 }
             });
             
@@ -406,6 +425,8 @@
                 if (clearForm) {
                     planForm.reset();
                 }
+                progressBar.classList.add('hidden');
+                ProgressManager.reset('generation-progress');
                 resultsContainer.classList.add('hidden');
                 actionButtons.classList.add('hidden');
                 chatSection.classList.add('hidden');
@@ -450,6 +471,25 @@
             function highlightActivePlan(planId) {
                 document.querySelectorAll('#plan-history-list li').forEach(li => {
                     li.classList.toggle('active', li.dataset.planId == planId);
+                });
+            }
+            
+            // Auto-save form data
+            const formInputs = planForm.querySelectorAll('input, select');
+            formInputs.forEach(input => {
+                input.addEventListener('input', debounce(() => {
+                    const formData = new FormData(planForm);
+                    const data = Object.fromEntries(formData);
+                    StorageManager.save('draft_plan_form', data);
+                }, 500));
+            });
+            
+            // Load saved form data
+            const savedFormData = StorageManager.load('draft_plan_form');
+            if (savedFormData) {
+                Object.keys(savedFormData).forEach(key => {
+                    const input = planForm.querySelector(`[name="${key}"]`);
+                    if (input) input.value = savedFormData[key];
                 });
             }
         });

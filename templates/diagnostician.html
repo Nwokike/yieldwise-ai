@@ -8,6 +8,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="{{ url_for('static', filename='js/utils.js') }}"></script>
 </head>
 <body>
     <div class="dashboard-layout">
@@ -81,6 +82,12 @@
                     <div class="form-group">
                         <label for="plant_image">Upload Plant Image</label>
                         <input type="file" id="plant_image" name="plant_image" accept="image/png, image/jpeg, image/jpg" required>
+                        <div id="image-preview" class="hidden" style="margin-top: 10px;">
+                            <img id="preview-img" style="max-width: 200px; max-height: 200px; border-radius: 8px; border: 1px solid #ddd;">
+                        </div>
+                    </div>
+                    <div class="progress-bar hidden" id="diagnosis-progress">
+                        <div class="progress-fill"></div>
                     </div>
                     <button type="submit" id="diagnose-button">Diagnose My Plant</button>
                 </form>
@@ -108,6 +115,10 @@
 
             const diagnoseForm = document.getElementById('diagnose-form');
             const diagnoseButton = document.getElementById('diagnose-button');
+            const plantImageInput = document.getElementById('plant_image');
+            const imagePreview = document.getElementById('image-preview');
+            const previewImg = document.getElementById('preview-img');
+            const progressBar = document.getElementById('diagnosis-progress');
             const resultsContainer = document.getElementById('results-container');
             const planOutput = document.getElementById('plan-output');
             const diagnosisTitle = document.getElementById('diagnosis-title');
@@ -121,13 +132,71 @@
             const diagnosesHistoryList = document.getElementById('diagnoses-history-list');
             const noDiagnosesMessage = document.getElementById('no-diagnoses-message');
             
+            // Image preview functionality
+            plantImageInput.addEventListener('change', function(event) {
+                const file = event.target.files[0];
+                if (file) {
+                    // Validate file size (max 5MB)
+                    if (file.size > 5 * 1024 * 1024) {
+                        NotificationManager.error('Image size must be less than 5MB');
+                        plantImageInput.value = '';
+                        imagePreview.classList.add('hidden');
+                        return;
+                    }
+                    
+                    // Validate file type
+                    const validTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+                    if (!validTypes.includes(file.type)) {
+                        NotificationManager.error('Please upload a valid image file (JPEG, JPG, or PNG)');
+                        plantImageInput.value = '';
+                        imagePreview.classList.add('hidden');
+                        return;
+                    }
+                    
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        previewImg.src = e.target.result;
+                        imagePreview.classList.remove('hidden');
+                    };
+                    reader.readAsDataURL(file);
+                } else {
+                    imagePreview.classList.add('hidden');
+                }
+            });
+            
             // --- MAIN DIAGNOSIS GENERATION ---
             diagnoseForm.addEventListener('submit', async function(event) {
                 event.preventDefault();
+                
+                // Form validation
+                const cropType = document.getElementById('crop_type').value.trim();
+                const imageFile = plantImageInput.files[0];
+                
+                if (!FormValidator.validateRequired(cropType)) {
+                    NotificationManager.error('Please enter the crop type');
+                    return;
+                }
+                
+                if (!imageFile) {
+                    NotificationManager.error('Please upload a plant image');
+                    return;
+                }
+                
                 resetUI();
 
+                // Enhanced loading state
                 diagnoseButton.textContent = '🔬 Analyzing...';
                 diagnoseButton.disabled = true;
+                progressBar.classList.remove('hidden');
+                
+                // Simulate progress
+                let progress = 0;
+                const progressInterval = setInterval(() => {
+                    progress += Math.random() * 10;
+                    if (progress > 85) progress = 85;
+                    ProgressManager.update('diagnosis-progress', progress);
+                }, 300);
+
                 resultsContainer.classList.remove('hidden');
                 planOutput.innerHTML = '<p class="loading">Your AI plant doctor is analyzing the image...</p>';
 
@@ -144,6 +213,9 @@
                         throw new Error(data.error || 'An unknown error occurred.');
                     }
                     
+                    // Complete progress
+                    ProgressManager.update('diagnosis-progress', 100);
+                    
                     currentDiagnosisId = data.diagnosis_id;
                     updateDiagnosisView(data.title, data.diagnosis, data.suggestions);
                     
@@ -152,10 +224,18 @@
                     if (noDiagnosesMessage) noDiagnosesMessage.style.display = 'none';
                     diagnosesHistoryList.prepend(newDiagnosisItem);
                     highlightActiveDiagnosis(data.diagnosis_id);
+                    
+                    NotificationManager.success('Plant diagnosis completed successfully!');
 
                 } catch (error) {
                     planOutput.innerHTML = `<p class="error-message">${error.message}</p>`;
+                    NotificationManager.error('Failed to diagnose plant: ' + error.message);
                 } finally {
+                    clearInterval(progressInterval);
+                    setTimeout(() => {
+                        progressBar.classList.add('hidden');
+                        ProgressManager.reset('diagnosis-progress');
+                    }, 1000);
                     diagnoseButton.textContent = 'Diagnose My Plant';
                     diagnoseButton.disabled = false;
                 }
@@ -184,13 +264,11 @@
             async function loadDiagnosis(diagnosisId) {
                 try {
                     resetUI();
+                    LoadingManager.show();
                     resultsContainer.classList.remove('hidden');
                     planOutput.innerHTML = '<p class="loading">Loading diagnosis...</p>';
 
-                    const response = await fetch(`/api/get_diagnosis/${diagnosisId}`);
-                    if (!response.ok) throw new Error('Could not load the selected diagnosis.');
-                    
-                    const data = await response.json();
+                    const data = await APIManager.get(`/api/get_diagnosis/${diagnosisId}`);
                     currentDiagnosisId = data.diagnosis.id;
 
                     updateDiagnosisView(data.diagnosis.title, data.diagnosis.report_html, []);
@@ -200,24 +278,31 @@
                     data.chat_history.forEach(msg => appendMessage(msg.role, msg.content)); 
 
                     highlightActiveDiagnosis(diagnosisId);
+                    NotificationManager.success('Diagnosis loaded successfully!');
 
                 } catch (error) {
                     planOutput.innerHTML = `<p class="error-message">${error.message}</p>`;
+                    NotificationManager.error('Failed to load diagnosis: ' + error.message);
+                } finally {
+                    LoadingManager.hide();
                 }
             }
             
             async function deleteDiagnosis(diagnosisId, listItem) {
-                 try {
-                    const response = await fetch(`/api/delete_diagnosis/${diagnosisId}`, { method: 'DELETE' });
-                    if (!response.ok) throw new Error('Could not delete the diagnosis.');
+                try {
+                    LoadingManager.show();
+                    await APIManager.delete(`/api/delete_diagnosis/${diagnosisId}`);
                     
                     listItem.remove();
                     if (diagnosesHistoryList.children.length === 1 && noDiagnosesMessage) { 
                          noDiagnosesMessage.style.display = 'block';
                     }
                     resetUI();
+                    NotificationManager.success('Diagnosis deleted successfully!');
                 } catch (error) {
-                    alert(error.message);
+                    NotificationManager.error('Failed to delete diagnosis: ' + error.message);
+                } finally {
+                    LoadingManager.hide();
                 }
             }
             
@@ -232,17 +317,14 @@
                 suggestedQuestions.innerHTML = ''; // Clear suggestions
                 
                 try {
-                    const response = await fetch('/api/diagnose_follow_up', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ diagnosis_id: currentDiagnosisId, question: question }),
+                    const data = await APIManager.post('/api/diagnose_follow_up', { 
+                        diagnosis_id: currentDiagnosisId, 
+                        question: question 
                     });
-                    if (!response.ok) throw new Error('Failed to get a response from the AI.');
-                    
-                    const data = await response.json();
                     appendMessage('assistant', data.answer);
                 } catch (error) {
                     appendMessage('assistant', `<p class="error-message">${error.message}</p>`);
+                    NotificationManager.error('Failed to get AI response');
                 }
             });
             
@@ -278,6 +360,8 @@
             
             function resetUI() {
                 resultsContainer.classList.add('hidden');
+                progressBar.classList.add('hidden');
+                ProgressManager.reset('diagnosis-progress');
                 planOutput.innerHTML = '';
                 chatHistory.innerHTML = '';
                 suggestedQuestions.innerHTML = '';
@@ -324,9 +408,9 @@
             // Check for a diagnosis ID in the URL on page load
             const urlParams = new URLSearchParams(window.location.search);
             const diagnosisIdFromUrl = urlParams.get('id');
-if (diagnosisIdFromUrl) {
-    loadDiagnosis(diagnosisIdFromUrl);
-}
+            if (diagnosisIdFromUrl) {
+                loadDiagnosis(diagnosisIdFromUrl);
+            }
         });
     </script>
 </body>
