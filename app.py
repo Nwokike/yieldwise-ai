@@ -45,14 +45,24 @@ login_manager.login_message_category = 'info'
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
-# Initialize our two separate, specialized clients
-genai.configure(api_key=GOOGLE_API_KEY)
-gemini_model_vision = genai.GenerativeModel('gemini-1.5-flash')
-groq_chat = ChatGroq(
-    temperature=0.7,
-    groq_api_key=GROQ_API_KEY,
-    model_name="llama-3.1-8b-instant"
-)
+# Initialize our two separate, specialized clients (with graceful fallback)
+gemini_model_vision = None
+groq_chat = None
+
+if GOOGLE_API_KEY:
+    genai.configure(api_key=GOOGLE_API_KEY)
+    gemini_model_vision = genai.GenerativeModel('gemini-1.5-flash')
+else:
+    print("Warning: GOOGLE_API_KEY not found. Plant diagnosis features will be disabled.")
+
+if GROQ_API_KEY:
+    groq_chat = ChatGroq(
+        temperature=0.7,
+        groq_api_key=GROQ_API_KEY,
+        model_name="llama-3.1-8b-instant"
+    )
+else:
+    print("Warning: GROQ_API_KEY not found. Farm planning features will be disabled.")
 
 # --- DATABASE SETUP ---
 def get_db_connection():
@@ -108,6 +118,9 @@ def load_user(user_id):
 # --- CORE AI FUNCTIONS ---
 def generate_farm_plan(location, space, budget, country, currency):
     try:
+        if not groq_chat:
+            return f"<p class='error-message'>Farm planning service is currently unavailable. Please contact support to enable GROQ API.</p>", []
+            
         master_prompt = f"""
         **Instruction:** You are an expert agronomist. Using your general knowledge, generate a concise business plan in simple markdown format, followed by three suggested follow-up questions separated by "---SUGGESTIONS---".
 
@@ -141,6 +154,9 @@ def generate_farm_plan(location, space, budget, country, currency):
 
 def diagnose_plant_issue(image_file, crop_type):
     try:
+        if not gemini_model_vision:
+            return "Error", f"<p class='error-message'>Plant diagnosis service is currently unavailable. Please contact support to enable Google Gemini API.</p>", []
+            
         img = Image.open(image_file)
         prompt_parts = [
             f"""
@@ -480,6 +496,9 @@ def api_follow_up():
         conversation_history_for_groq += f"{message['role'].capitalize()}: {message['content']}\n"
     conversation_history_for_groq += f"User: {question}"
     try:
+        if not groq_chat:
+            conn.close()
+            return jsonify({'error': 'Farm planning service is currently unavailable. Please contact support to enable GROQ API.'}), 503
         response = groq_chat.invoke(conversation_history_for_groq)
         answer = response.content
         conn.execute('INSERT INTO chat_history (plan_id, role, content) VALUES (?, ?, ?)', (plan_id, 'assistant', answer))
@@ -542,6 +561,9 @@ def api_diagnose_follow_up():
         conversation_for_gemini.append(f"{message['role'].capitalize()}: {message['content']}")
     conversation_for_gemini.append(f"User: {question}")
     try:
+        if not gemini_model_vision:
+            conn.close()
+            return jsonify({'error': 'Plant diagnosis service is currently unavailable. Please contact support to enable Google Gemini API.'}), 503
         response = gemini_model_vision.generate_content("\n".join(conversation_for_gemini))
         answer = response.text
         conn.execute('INSERT INTO diagnoses_chat_history (diagnosis_id, role, content) VALUES (?, ?, ?)', (diagnosis_id, 'assistant', answer))
@@ -575,6 +597,6 @@ def too_large(error):
 # --- MAIN EXECUTION BLOCK ---
 if __name__ == '__main__':
     init_db()
-    app.run(debug=False, use_reloader=False)
+    app.run(host='0.0.0.0', port=5000, debug=True)
 
 
