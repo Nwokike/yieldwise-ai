@@ -51,7 +51,7 @@ groq_chat = None
 
 if GOOGLE_API_KEY:
     genai.configure(api_key=GOOGLE_API_KEY)
-    gemini_model_vision = genai.GenerativeModel('gemini-1.5-flash')
+    gemini_model_vision = genai.GenerativeModel('gemini-1.5-flash-latest')
 else:
     print("Warning: GOOGLE_API_KEY not found. Plant diagnosis features will be disabled.")
 
@@ -194,7 +194,12 @@ def diagnose_plant_issue(image_file, crop_type):
 @app.route('/')
 def home():
     if current_user.is_authenticated: return redirect(url_for('dashboard'))
-    return render_template('index.html')
+    # Enhanced home page with service status
+    services_status = {
+        'farm_planning': groq_chat is not None,
+        'plant_diagnosis': gemini_model_vision is not None
+    }
+    return render_template('index.html', services_status=services_status)
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -575,10 +580,20 @@ def api_diagnose_follow_up():
         print(f"An error occurred in diagnosis follow-up: {e}")
         return jsonify({'error': 'Sorry, an error occurred.'}), 500
 
-# --- HEALTH CHECK ENDPOINT ---
+# --- ENHANCED HEALTH CHECK ENDPOINT ---
 @app.route('/api/health', methods=['HEAD', 'GET'])
 def health_check():
-    return jsonify({'status': 'healthy', 'timestamp': datetime.now().isoformat()})
+    return jsonify({
+        'status': 'healthy', 
+        'timestamp': datetime.now().isoformat(),
+        'services': {
+            'groq_api': 'available' if groq_chat else 'unavailable',
+            'gemini_api': 'available' if gemini_model_vision else 'unavailable',
+            'database': 'available'
+        },
+        'version': '2.0.0',
+        'features': ['farm_planning', 'plant_diagnosis', 'chat_support', 'pdf_export']
+    })
 
 # --- ERROR HANDLERS ---
 @app.errorhandler(404)
