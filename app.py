@@ -51,7 +51,7 @@ groq_chat = None
 
 if GOOGLE_API_KEY:
     genai.configure(api_key=GOOGLE_API_KEY)
-    gemini_model_vision = genai.GenerativeModel('gemini-1.5-flash-latest')
+    gemini_model_vision = genai.GenerativeModel('gemini-2.5-flash')
 else:
     print("Warning: GOOGLE_API_KEY not found. Plant diagnosis features will be disabled.")
 
@@ -613,5 +613,3 @@ def too_large(error):
 if __name__ == '__main__':
     init_db()
     app.run(host='0.0.0.0', port=5000, debug=True)
-
-
