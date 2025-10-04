@@ -24,9 +24,8 @@ from weasyprint import HTML
 import google.generativeai as genai
 from PIL import Image
 
-# Database adapters for environment-based switching
-import psycopg2
-from psycopg2.extras import RealDictCursor
+# The stable library for Groq
+from langchain_groq import ChatGroq
 
 # Load environment variables from .env file
 load_dotenv()
@@ -44,39 +43,32 @@ login_manager.login_message_category = 'info'
 
 # --- API KEY & AI CLIENT SETUP ---
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
-# Initialize Gemini 2.5 Flash for all AI features
-gemini_model = None
+# Initialize our two separate, specialized clients (with graceful fallback)
+gemini_model_vision = None
+groq_chat = None
 
 if GOOGLE_API_KEY:
     genai.configure(api_key=GOOGLE_API_KEY)
-    gemini_model = genai.GenerativeModel(
-        'gemini-2.0-flash-exp',
-        generation_config={
-            "temperature": 0.7,
-            "top_p": 0.95,
-            "top_k": 40,
-            "max_output_tokens": 8192,
-        }
-    )
-    print("✓ Gemini 2.5 Flash initialized successfully")
+    gemini_model_vision = genai.GenerativeModel('gemini-2.5-flash')
 else:
-    print("Warning: GOOGLE_API_KEY not found. AI features will be disabled.")
+    print("Warning: GOOGLE_API_KEY not found. Plant diagnosis features will be disabled.")
+
+if GROQ_API_KEY:
+    groq_chat = ChatGroq(
+        temperature=0.7,
+        groq_api_key=GROQ_API_KEY,
+        model_name="llama-3.1-8b-instant"
+    )
+else:
+    print("Warning: GROQ_API_KEY not found. Farm planning features will be disabled.")
 
 # --- DATABASE SETUP ---
-DATABASE_ENV = os.getenv('DATABASE_ENV', 'development')
-DATABASE_URL = os.getenv('DATABASE_URL')
-
 def get_db_connection():
-    """Get database connection based on environment"""
-    if DATABASE_ENV == 'production' and DATABASE_URL:
-        # PostgreSQL for production (Neon)
-        return psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
-    else:
-        # SQLite for development
-        conn = sqlite3.connect('yieldwise.db', check_same_thread=False, detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
-        conn.row_factory = sqlite3.Row
-        return conn
+    conn = sqlite3.connect('yieldwise.db', check_same_thread=False, detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
+    conn.row_factory = sqlite3.Row
+    return conn
 
 def init_db():
     conn = get_db_connection()
@@ -125,140 +117,75 @@ def load_user(user_id):
 
 # --- CORE AI FUNCTIONS ---
 def generate_farm_plan(location, space, budget, country, currency):
-    """Generate farm plan using Gemini 2.5 Flash"""
     try:
-        if not gemini_model:
-            return f"<p class='error-message'>Farm planning service is currently unavailable. Please configure your Gemini API key.</p>", []
+        if not groq_chat:
+            return f"<p class='error-message'>Farm planning service is currently unavailable. Please contact support to enable GROQ API.</p>", []
             
         master_prompt = f"""
-        **Instruction:** You are an expert agronomist AI. Using your knowledge, generate a comprehensive yet concise business plan in markdown format, followed by three suggested follow-up questions separated by "---SUGGESTIONS---".
+        **Instruction:** You are an expert agronomist. Using your general knowledge, generate a concise business plan in simple markdown format, followed by three suggested follow-up questions separated by "---SUGGESTIONS---".
 
         **Business Plan Sections for a user in {location}, {country} with a budget of {currency} {budget} for a {space} space:**
-        
-        1.  **🌱 Recommended Crop Selection:** 
-            - Choose ONE highly profitable, fast-growing crop ideal for {location}
-            - Explain why this crop is perfect for their specific location and climate
-            - Include expected yield per square meter
-        
-        2.  **💰 Budget Breakdown (in {currency}):** 
-            - Create a detailed markdown table showing exact budget allocation
-            - Include: seeds/seedlings, soil/fertilizer, tools, water, pest control, contingency
-            - Total must equal {currency} {budget}
-        
-        3.  **🗓️ 90-Day Action Plan:** 
-            - Week 1-4: Preparation and planting
-            - Week 5-8: Growth and maintenance
-            - Week 9-12: Pre-harvest and harvest
-            - Week 13+: Marketing and sales
-        
-        4.  **📈 Realistic Earnings Projection:** 
-            - Estimated harvest quantity
-            - Local market price per unit in {currency}
-            - Total expected revenue
-            - Net profit after costs
-        
-        5.  **🛒 Market Strategy:** 
-            - Best local markets in {location}
-            - Online selling options
-            - Bulk buyer opportunities
-        
-        6.  **⚠️ Risk Management:** 
-            - Top 3 risks for this crop in {location}
-            - Practical mitigation strategies for each
-        
-        7.  **🎯 Success Tips:**
-            - 3 key tips for maximizing yield
-            - Local resources and contacts
+        1.  **🌱 Recommended Crop:** Based on your knowledge, choose ONE highly profitable, fast-growing crop suitable for the user's location. Justify your choice.
+        2.  **💰 Budget Breakdown (in {currency}):** Create a markdown table for the EXACT budget.
+        3.  **🗓️ 90-Day Action Plan:** A simple 4-step timeline.
+        4.  **📈 Realistic Earnings Projection:** Estimate harvest and earnings in {currency}.
+        5.  **🛒 Simple Market Strategy:** ONE sentence on the easiest way to sell.
+        6.  **⚠️ Risk & Mitigation:** ONE major risk and ONE simple mitigation.
         
         ---SUGGESTIONS---
         
         **Suggested Follow-up Questions:**
-        1. What are the most common pests for [Crop Name] in {location} and how do I prevent them organically?
-        2. Can you give me a detailed week-by-week guide for the first month?
-        3. Which specific markets in {location} pay the best prices for {currency}?
+        1. What are the most common pests for [Crop Name] in my region and how do I prevent them organically?
+        2. Can you give me a week-by-week guide for the first month of planting?
+        3. Where are the best local markets in {location} to sell my produce?
         """
-        
-        response = gemini_model.generate_content(master_prompt)
-        full_response = response.text
-        
+        response = groq_chat.invoke(master_prompt)
+        full_response = response.content
         if "---SUGGESTIONS---" in full_response:
             plan_text, suggestions_text = full_response.split("---SUGGESTIONS---", 1)
             suggestions = [s.strip() for s in suggestions_text.strip().split('\n') if s.strip() and s.strip().startswith(('1', '2', '3', '- '))]
         else:
             plan_text, suggestions = full_response, []
-        
         plan_html = markdown.markdown(plan_text, extensions=['tables'])
         return plan_html, suggestions
-        
     except Exception as e:
         print(f"An error occurred during plan generation: {e}")
         return f"<p class='error-message'>Error: Could not generate the plan. The AI service may be temporarily unavailable.</p>", []
 
 def diagnose_plant_issue(image_file, crop_type):
-    """Diagnose plant issues using Gemini 2.5 Flash with vision capabilities"""
     try:
-        if not gemini_model:
-            return "Error", f"<p class='error-message'>Plant diagnosis service is currently unavailable. Please configure your Gemini API key.</p>", []
+        if not gemini_model_vision:
+            return "Error", f"<p class='error-message'>Plant diagnosis service is currently unavailable. Please contact support to enable Google Gemini API.</p>", []
             
         img = Image.open(image_file)
-        prompt = f"""
-        Analyze the attached image of a {crop_type} plant/leaf. Your response must be in two parts, separated by "---SUGGESTIONS---".
-        
-        **Part 1: Comprehensive Diagnosis Report (Markdown Format)**
-        
-        1. **Title:** Create a clear, specific diagnostic title (e.g., "Early Blight Detected on Tomato Plant")
-        
-        2. **Visual Analysis:** 
-           - Describe what you observe in the image
-           - Identify specific symptoms (discoloration, spots, wilting, etc.)
-        
-        3. **Diagnosis:** 
-           - Identify the most likely disease, pest, or issue
-           - Confidence level of diagnosis
-           - Alternative possibilities if uncertain
-        
-        4. **Cause & Impact:**
-           - What causes this condition
-           - How it affects plant health and yield
-           - Progression if left untreated
-        
-        5. **Organic Treatment Solutions:**
-           - 2-3 organic/natural remedies with specific instructions
-           - Preventive measures
-           - Expected timeline for results
-        
-        6. **Chemical Treatment Options:**
-           - Recommended chemical treatments (product types/active ingredients)
-           - Application guidelines
-           - Safety precautions
-        
-        7. **Prevention Strategy:**
-           - How to prevent recurrence
-           - Best practices for plant health
-        
-        **IMPORTANT: Provide confident diagnosis based on visible symptoms. Be specific and actionable.**
-        
-        ---SUGGESTIONS---
-        
-        **Part 2: Suggested Follow-up Questions**
-        Provide 3 insightful questions the farmer might ask based on this diagnosis.
-        **IMPORTANT: Questions must be answerable with text only. No image/video requests.**
-        """
-        
-        response = gemini_model.generate_content([prompt, img])
+        prompt_parts = [
+            f"""
+            Analyze the attached image of a {crop_type} leaf. Your response must be in two parts, separated by "---SUGGESTIONS---".
+            **Part 1: Diagnosis Report (Markdown Format)**
+            1. **Title:** A short, descriptive title.
+            2. **Analysis:** Identify the likely pest or disease.
+            3. **Symptoms:** Describe symptoms in the image.
+            4. **Organic Treatment:** Recommend one organic method for a Nigerian farmer.
+            5. **Chemical Treatment:** Recommend one chemical method.
+            **IMPORTANT: Do not apologize for image quality. Provide the best possible diagnosis.**
+            ---SUGGESTIONS---
+            **Part 2: Suggested Follow-up Questions**
+            Based on your diagnosis, provide three brief, insightful follow-up questions a user might ask. 
+            **IMPORTANT: The questions must be answerable with text only. Do not suggest showing images or videos.**
+            """,
+            img,
+        ]
+        response = gemini_model_vision.generate_content(prompt_parts)
         full_response = response.text
-        
         if "---SUGGESTIONS---" in full_response:
             report_text, suggestions_text = full_response.split("---SUGGESTIONS---", 1)
             title_line = report_text.strip().split('\n')[0]
-            title = title_line.replace('**Title:**', '').replace('#', '').strip() if '**Title:**' in title_line or title_line.startswith('#') else f"Diagnosis for {crop_type}"
+            title = title_line.replace('**Title:**', '').strip() if '**Title:**' in title_line else f"Diagnosis for {crop_type}"
             suggestions = [s.strip() for s in suggestions_text.strip().split('\n') if s.strip() and s.strip().startswith(('1', '2', '3', '- '))]
         else:
-            report_text, title, suggestions = full_response, f"Plant Health Analysis: {crop_type}", []
-        
+            report_text, title, suggestions = full_response, f"General Diagnosis for {crop_type}", []
         report_html = markdown.markdown(report_text, extensions=['tables'])
         return title, report_html, suggestions
-        
     except Exception as e:
         print(f"An error occurred during Gemini image analysis: {e}")
         return "Error", "<p class='error-message'>Sorry, an error occurred while analyzing the image.</p>", []
@@ -269,8 +196,8 @@ def home():
     if current_user.is_authenticated: return redirect(url_for('dashboard'))
     # Enhanced home page with service status
     services_status = {
-        'farm_planning': gemini_model is not None,
-        'plant_diagnosis': gemini_model is not None
+        'farm_planning': groq_chat is not None,
+        'plant_diagnosis': gemini_model_vision is not None
     }
     return render_template('index.html', services_status=services_status)
 
@@ -569,16 +496,16 @@ def api_follow_up():
     history = conn.execute('SELECT role, content FROM chat_history WHERE plan_id = ? ORDER BY created_at ASC', (plan_id,)).fetchall()
     conn.execute('INSERT INTO chat_history (plan_id, role, content) VALUES (?, ?, ?)', (plan_id, 'user', question))
     conn.commit()
-    conversation_history = "Initial Farm Plan:\n" + plan['plan_html'] + "\n\n"
+    conversation_history_for_groq = "Initial Plan:\n" + plan['plan_html'] + "\n\n"
     for message in history:
-        conversation_history += f"{message['role'].capitalize()}: {message['content']}\n"
-    conversation_history += f"User: {question}\n\nAs an expert agronomist, provide a detailed, helpful answer to the user's question about their farm plan."
+        conversation_history_for_groq += f"{message['role'].capitalize()}: {message['content']}\n"
+    conversation_history_for_groq += f"User: {question}"
     try:
-        if not gemini_model:
+        if not groq_chat:
             conn.close()
-            return jsonify({'error': 'Farm planning service is currently unavailable. Please configure your Gemini API key.'}), 503
-        response = gemini_model.generate_content(conversation_history)
-        answer = response.text
+            return jsonify({'error': 'Farm planning service is currently unavailable. Please contact support to enable GROQ API.'}), 503
+        response = groq_chat.invoke(conversation_history_for_groq)
+        answer = response.content
         conn.execute('INSERT INTO chat_history (plan_id, role, content) VALUES (?, ?, ?)', (plan_id, 'assistant', answer))
         conn.commit()
         conn.close()
@@ -634,15 +561,15 @@ def api_diagnose_follow_up():
     history = conn.execute('SELECT role, content FROM diagnoses_chat_history WHERE diagnosis_id = ? ORDER BY created_at ASC', (diagnosis_id,)).fetchall()
     conn.execute('INSERT INTO diagnoses_chat_history (diagnosis_id, role, content) VALUES (?, ?, ?)', (diagnosis_id, 'user', question))
     conn.commit()
-    conversation_for_gemini = "Initial Diagnosis Report:\n" + diagnosis['report_html'] + "\n\n"
+    conversation_for_gemini = ["Initial Diagnosis Report:\n" + diagnosis['report_html']]
     for message in history:
-        conversation_for_gemini += f"{message['role'].capitalize()}: {message['content']}\n"
-    conversation_for_gemini += f"User: {question}\n\nAs a plant pathology expert, provide a detailed, helpful answer to the user's question about their plant diagnosis."
+        conversation_for_gemini.append(f"{message['role'].capitalize()}: {message['content']}")
+    conversation_for_gemini.append(f"User: {question}")
     try:
-        if not gemini_model:
+        if not gemini_model_vision:
             conn.close()
-            return jsonify({'error': 'Plant diagnosis service is currently unavailable. Please configure your Gemini API key.'}), 503
-        response = gemini_model.generate_content(conversation_for_gemini)
+            return jsonify({'error': 'Plant diagnosis service is currently unavailable. Please contact support to enable Google Gemini API.'}), 503
+        response = gemini_model_vision.generate_content("\n".join(conversation_for_gemini))
         answer = response.text
         conn.execute('INSERT INTO diagnoses_chat_history (diagnosis_id, role, content) VALUES (?, ?, ?)', (diagnosis_id, 'assistant', answer))
         conn.commit()
@@ -660,13 +587,12 @@ def health_check():
         'status': 'healthy', 
         'timestamp': datetime.now().isoformat(),
         'services': {
-            'gemini_api': 'available' if gemini_model else 'unavailable',
-            'database': 'available' if DATABASE_ENV == 'development' else ('available' if DATABASE_URL else 'unconfigured')
+            'groq_api': 'available' if groq_chat else 'unavailable',
+            'gemini_api': 'available' if gemini_model_vision else 'unavailable',
+            'database': 'available'
         },
-        'version': '3.0.0',
-        'ai_model': 'Gemini 2.5 Flash',
-        'database_env': DATABASE_ENV,
-        'features': ['farm_planning', 'plant_diagnosis', 'chat_support', 'pdf_export', 'showcase_sharing']
+        'version': '2.0.0',
+        'features': ['farm_planning', 'plant_diagnosis', 'chat_support', 'pdf_export']
     })
 
 # --- ERROR HANDLERS ---
