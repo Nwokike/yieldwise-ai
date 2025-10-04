@@ -108,53 +108,79 @@ def generate_farm_plan(location, space, budget, country, currency):
     try:
         if not gemini_model:
             return "<p class='error-message'>AI service is currently unavailable. Please contact support to enable Gemini API.</p>", []
+        
+        # Prioritize Nigerian crops for Nigerian users
+        nigerian_priority = ""
+        if country == "Nigeria" or "nigeria" in location.lower():
+            nigerian_priority = """
+**PRIORITY CROPS FOR NIGERIA (Consider these first):**
+- Cassava (highest yield, multiple uses: garri, fufu, flour, starch)
+- Maize/Corn (staple food, animal feed, fast-growing)
+- Rice (high government support, import gap, strong demand)
+- Yam (traditional staple, high value)
+- Vegetables (tomatoes, peppers, onions - daily necessity, urban demand)
+- Plantain (best long-term ROI, year-round production)
+- Ginger (export value, medicinal demand)
+
+**Nigerian Market Context:**
+- Consider selling at major markets: Mile 12 (Lagos), Kano State markets, Dawanau International Grains Market, local daily markets
+- Factor in Nigerian climate zones and seasonal patterns
+- Use local farming practices combined with modern techniques
+"""
             
-        master_prompt = f"""You are an expert agronomist and agricultural business consultant. Create a comprehensive farm business plan.
+        master_prompt = f"""You are an expert Nigerian agronomist and agricultural business consultant with deep knowledge of West African farming. Create a comprehensive farm business plan.
 
 **Farm Details:**
 - Location: {location}, {country}
 - Available Space: {space}
 - Budget: {currency} {budget}
 
+{nigerian_priority}
+
 **Instructions:**
 Generate a detailed business plan in markdown format with these sections:
 
 1. **🌱 Recommended Crop**
    - Choose ONE highly profitable, fast-growing crop ideal for {location}
-   - Explain why this crop is perfect for their location and budget
+   - Prioritize crops proven successful for Nigerian/African smallholder farmers
+   - Explain why this crop is perfect for their location, budget, and local market demand
 
 2. **💰 Budget Breakdown (in {currency})**
    - Create a detailed markdown table breaking down the EXACT budget
-   - Include: seeds, fertilizer, tools, water, labor, miscellaneous
+   - Include: seeds/seedlings, fertilizer (organic & chemical options), tools, water/irrigation, labor, transportation, miscellaneous
    - Show total = {budget}
+   - Use realistic local market prices
 
 3. **🗓️ 90-Day Action Plan**
-   - Week 1-2: Land preparation and initial steps
+   - Week 1-2: Land preparation and initial steps (consider Nigerian weather patterns)
    - Week 3-4: Planting and setup
-   - Week 5-8: Growth and maintenance
-   - Week 9-12: Pre-harvest and harvest
+   - Week 5-8: Growth and maintenance (pest management, fertilizing)
+   - Week 9-12: Pre-harvest and harvest preparation
 
 4. **📈 Realistic Earnings Projection (in {currency})**
-   - Expected harvest amount
-   - Market price per unit
+   - Expected harvest amount (based on local yields)
+   - Market price per unit (use current Nigerian market rates if applicable)
    - Total expected revenue
-   - Net profit after expenses
+   - Net profit after all expenses
+   - Profit margin percentage
 
 5. **🛒 Market Strategy**
-   - Best places to sell in {location}
-   - Pricing recommendations
-   - Marketing tips
+   - Best places to sell in {location} (local markets, cooperatives, processors)
+   - For Nigeria: mention specific markets like Mile 12, Kano markets, or local daily markets
+   - Pricing recommendations based on local competition
+   - Marketing tips for African farmers (cooperative selling, direct-to-consumer)
 
 6. **⚠️ Risk & Mitigation**
-   - 2-3 major risks
-   - Practical mitigation strategies
+   - 2-3 major risks specific to {location}/Nigeria
+   - Practical mitigation strategies (pest control, weather challenges, market fluctuation)
+   - Consider Nigerian agricultural realities (power, water access, transportation)
 
 ---SUGGESTIONS---
 
 **Suggested Follow-up Questions:**
 1. What are the most common pests for this crop in {location} and how do I prevent them organically?
-2. Can you give me a detailed week-by-week watering and fertilizer schedule?
-3. What are the best local markets in {location} to sell my produce?"""
+2. Can you give me a detailed week-by-week watering and fertilizer schedule for {location}'s climate?
+3. What are the best local markets in {location} to sell my produce and what prices should I expect?"""
 
         response = gemini_model.generate_content(master_prompt)
         full_response = response.text
@@ -179,17 +205,26 @@ def diagnose_plant_issue(image_file, crop_type):
             
         img = Image.open(image_file)
         prompt_parts = [
-            f"""Analyze this {crop_type} plant image and provide a detailed diagnosis.
+            f"""Analyze this {crop_type} plant image and provide a detailed diagnosis. You are an expert plant pathologist with extensive experience in Nigerian and West African crop diseases.
 
 **Part 1: Diagnosis Report (Markdown Format)**
 1. **Title:** A short, descriptive title for the issue
 2. **Analysis:** Identify the likely pest or disease affecting this plant
+   - Consider common pests/diseases prevalent in Nigeria and West Africa
+   - Look for signs of nutrient deficiency common in tropical soils
 3. **Symptoms:** Describe the symptoms visible in the image
 4. **Organic Treatment:** Recommend organic/natural treatment methods
+   - Prioritize locally available organic solutions (neem oil, wood ash, local herbs)
+   - Traditional Nigerian farming remedies where applicable
 5. **Chemical Treatment:** Recommend chemical treatment options if needed
+   - Suggest products commonly available in Nigerian agro-dealers
+   - Include both brand names and generic chemical names
+   - Provide dosage and safety precautions
 6. **Prevention:** Tips to prevent this issue in the future
+   - Climate-specific advice for Nigerian weather conditions
+   - Crop rotation practices suitable for African smallholder farms
 
-**IMPORTANT:** Provide your best diagnosis even if the image quality is not perfect.
+**IMPORTANT:** Provide your best diagnosis even if the image quality is not perfect. Focus on practical solutions Nigerian farmers can implement immediately.
 
 ---SUGGESTIONS---
 
@@ -644,17 +679,19 @@ def api_knowledge_query():
             if recent_plan:
                 user_context = f"\n\nUser is located in: {recent_plan['location']}, {recent_plan['country']}"
         
-        prompt = f"""You are an expert agricultural advisor with decades of farming experience. Answer this farming question with practical, actionable advice.
+        prompt = f"""You are an expert agricultural advisor with decades of farming experience in Nigeria and West Africa. Answer this farming question with practical, actionable advice tailored for African smallholder farmers.
 
 Question: {query}{user_context}
 
 Provide a clear, helpful answer in 2-4 paragraphs. Focus on:
-- Practical advice farmers can implement immediately
-- Location-specific recommendations when relevant
-- Cost-effective solutions
-- Both traditional and modern approaches
+- Practical advice Nigerian/African farmers can implement immediately
+- Location-specific recommendations (Nigerian climate zones, soil types, seasons)
+- Cost-effective solutions using locally available materials and resources
+- Both traditional African farming wisdom and modern agricultural techniques
+- Reference Nigerian crops (cassava, maize, rice, yam, vegetables, plantain) when relevant
+- Consider Nigerian agricultural realities (weather patterns, market access, smallholder constraints)
 
-Keep it conversational and easy to understand."""
+Keep it conversational and easy to understand. Use simple language suitable for farmers with varying education levels."""
         
         response = gemini_model.generate_content(prompt)
         answer_html = markdown.markdown(response.text)
