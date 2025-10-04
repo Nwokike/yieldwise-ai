@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block title %}Sign Up - YieldWise AI{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow-lg border-0">
+                <div class="card-body p-5">
+                    <div class="text-center mb-4">
+                        <i class="bi bi-stars text-success" style="font-size: 3rem;"></i>
+                        <h2 class="fw-bold mt-3">Join YieldWise AI</h2>
+                        <p class="text-muted">Start your journey to smarter farming</p>
+                    </div>
+                    
+                    <form method="POST" action="{{ url_for('register') }}">
+                        <div class="mb-3">
+                            <label for="name" class="form-label">Full Name</label>
+                            <input type="text" class="form-control form-control-lg" id="name" name="name" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="email" class="form-label">Email Address</label>
+                            <input type="email" class="form-control form-control-lg" id="email" name="email" required>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label for="password" class="form-label">Password</label>
+                            <input type="password" class="form-control form-control-lg" id="password" name="password" required>
+                            <small class="text-muted">Use at least 8 characters with letters and numbers</small>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-success btn-lg w-100 mb-3">
+                            <i class="bi bi-person-plus"></i> Create Free Account
+                        </button>
+                    </form>
+                    
+                    <div class="text-center mt-3">
+                        <p class="text-muted small mb-3">
+                            By signing up, you agree to our Terms of Service and Privacy Policy
+                        </p>
+                    </div>
+                    
+                    <hr>
+                    
+                    <p class="text-center mb-0">
+                        Already have an account? <a href="{{ url_for('login') }}" class="text-success fw-bold">Login</a>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
