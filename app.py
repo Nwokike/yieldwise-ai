@@ -1,4 +1,6 @@
-# 1. Import necessary libraries
+# YieldWise AI - Agricultural Platform
+# Using ONLY Gemini API for all AI features
+
 import os
 import sqlite3
 import uuid
@@ -24,13 +26,10 @@ from weasyprint import HTML
 import google.generativeai as genai
 from PIL import Image
 
-# The stable library for Groq
-from langchain_groq import ChatGroq
-
-# Load environment variables from .env file
+# Load environment variables
 load_dotenv()
 
-# 2. Initialize Flask and extensions
+# Initialize Flask and extensions
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', os.urandom(24))
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
@@ -41,28 +40,17 @@ login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 login_manager.login_message_category = 'info'
 
-# --- API KEY & AI CLIENT SETUP ---
+# --- GEMINI API SETUP (ONLY AI PROVIDER) ---
 GOOGLE_API_KEY = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-
-# Initialize our two separate, specialized clients (with graceful fallback)
-gemini_model_vision = None
-groq_chat = None
+gemini_model = None
 
 if GOOGLE_API_KEY:
     genai.configure(api_key=GOOGLE_API_KEY)
-    gemini_model_vision = genai.GenerativeModel('gemini-2.5-flash')
+    gemini_model = genai.GenerativeModel('gemini-2.0-flash-exp')
+    print("✅ Gemini API configured successfully!")
 else:
-    print("Warning: GOOGLE_API_KEY not found. Plant diagnosis features will be disabled.")
-
-if GROQ_API_KEY:
-    groq_chat = ChatGroq(
-        temperature=0.7,
-        groq_api_key=GROQ_API_KEY,
-        model_name="llama-3.1-8b-instant"
-    )
-else:
-    print("Warning: GROQ_API_KEY not found. Farm planning features will be disabled.")
+    print("⚠️  Warning: GEMINI_API_KEY not found. All AI features will be disabled.")
+    print("   Please add GEMINI_API_KEY to your Replit Secrets.")
 
 # --- DATABASE SETUP ---
 def get_db_connection():
@@ -114,91 +102,125 @@ def load_user(user_id):
     if user_data: return User(user_data['id'], user_data['email'], user_data['password'], user_data['name'])
     return None
 
-# --- CORE AI FUNCTIONS ---
+# --- CORE AI FUNCTIONS (ALL USE GEMINI) ---
 def generate_farm_plan(location, space, budget, country, currency):
+    """Generate farm business plan using Gemini AI"""
     try:
-        if not groq_chat:
-            return f"<p class='error-message'>Farm planning service is currently unavailable. Please contact support to enable GROQ API.</p>", []
+        if not gemini_model:
+            return "<p class='error-message'>AI service is currently unavailable. Please contact support to enable Gemini API.</p>", []
             
-        master_prompt = f"""
-        **Instruction:** You are an expert agronomist. Using your general knowledge, generate a concise business plan in simple markdown format, followed by three suggested follow-up questions separated by "---SUGGESTIONS---".
+        master_prompt = f"""You are an expert agronomist and agricultural business consultant. Create a comprehensive farm business plan.
 
-        **Business Plan Sections for a user in {location}, {country} with a budget of {currency} {budget} for a {space} space:**
-        1.  **🌱 Recommended Crop:** Based on your knowledge, choose ONE highly profitable, fast-growing crop suitable for the user's location. Justify your choice.
-        2.  **💰 Budget Breakdown (in {currency}):** Create a markdown table for the EXACT budget.
-        3.  **🗓️ 90-Day Action Plan:** A simple 4-step timeline.
-        4.  **📈 Realistic Earnings Projection:** Estimate harvest and earnings in {currency}.
-        5.  **🛒 Simple Market Strategy:** ONE sentence on the easiest way to sell.
-        6.  **⚠️ Risk & Mitigation:** ONE major risk and ONE simple mitigation.
+**Farm Details:**
+- Location: {location}, {country}
+- Available Space: {space}
+- Budget: {currency} {budget}
+
+**Instructions:**
+Generate a detailed business plan in markdown format with these sections:
+
+1. **🌱 Recommended Crop**
+   - Choose ONE highly profitable, fast-growing crop ideal for {location}
+   - Explain why this crop is perfect for their location and budget
+
+2. **💰 Budget Breakdown (in {currency})**
+   - Create a detailed markdown table breaking down the EXACT budget
+   - Include: seeds, fertilizer, tools, water, labor, miscellaneous
+   - Show total = {budget}
+
+3. **🗓️ 90-Day Action Plan**
+   - Week 1-2: Land preparation and initial steps
+   - Week 3-4: Planting and setup
+   - Week 5-8: Growth and maintenance
+   - Week 9-12: Pre-harvest and harvest
+
+4. **📈 Realistic Earnings Projection (in {currency})**
+   - Expected harvest amount
+   - Market price per unit
+   - Total expected revenue
+   - Net profit after expenses
+
+5. **🛒 Market Strategy**
+   - Best places to sell in {location}
+   - Pricing recommendations
+   - Marketing tips
+
+6. **⚠️ Risk & Mitigation**
+   - 2-3 major risks
+   - Practical mitigation strategies
+
+---SUGGESTIONS---
+
+**Suggested Follow-up Questions:**
+1. What are the most common pests for this crop in {location} and how do I prevent them organically?
+2. Can you give me a detailed week-by-week watering and fertilizer schedule?
+3. What are the best local markets in {location} to sell my produce?"""
+
+        response = gemini_model.generate_content(master_prompt)
+        full_response = response.text
         
-        ---SUGGESTIONS---
-        
-        **Suggested Follow-up Questions:**
-        1. What are the most common pests for [Crop Name] in my region and how do I prevent them organically?
-        2. Can you give me a week-by-week guide for the first month of planting?
-        3. Where are the best local markets in {location} to sell my produce?
-        """
-        response = groq_chat.invoke(master_prompt)
-        full_response = response.content
         if "---SUGGESTIONS---" in full_response:
             plan_text, suggestions_text = full_response.split("---SUGGESTIONS---", 1)
-            suggestions = [s.strip() for s in suggestions_text.strip().split('\n') if s.strip() and s.strip().startswith(('1', '2', '3', '- '))]
+            suggestions = [s.strip() for s in suggestions_text.strip().split('\n') if s.strip() and any(s.strip().startswith(str(i)) for i in range(1, 6))]
         else:
             plan_text, suggestions = full_response, []
+        
         plan_html = markdown.markdown(plan_text, extensions=['tables'])
-        return plan_html, suggestions
+        return plan_html, suggestions[:3]
     except Exception as e:
-        print(f"An error occurred during plan generation: {e}")
-        return f"<p class='error-message'>Error: Could not generate the plan. The AI service may be temporarily unavailable.</p>", []
+        print(f"Error in generate_farm_plan: {e}")
+        return "<p class='error-message'>Error: Could not generate the plan. Please try again.</p>", []
 
 def diagnose_plant_issue(image_file, crop_type):
+    """Diagnose plant disease using Gemini Vision AI"""
     try:
-        if not gemini_model_vision:
-            return "Error", f"<p class='error-message'>Plant diagnosis service is currently unavailable. Please contact support to enable Google Gemini API.</p>", []
+        if not gemini_model:
+            return "Error", "<p class='error-message'>AI service is currently unavailable. Please contact support to enable Gemini API.</p>", []
             
         img = Image.open(image_file)
         prompt_parts = [
-            f"""
-            Analyze the attached image of a {crop_type} leaf. Your response must be in two parts, separated by "---SUGGESTIONS---".
-            **Part 1: Diagnosis Report (Markdown Format)**
-            1. **Title:** A short, descriptive title.
-            2. **Analysis:** Identify the likely pest or disease.
-            3. **Symptoms:** Describe symptoms in the image.
-            4. **Organic Treatment:** Recommend one organic method for a Nigerian farmer.
-            5. **Chemical Treatment:** Recommend one chemical method.
-            **IMPORTANT: Do not apologize for image quality. Provide the best possible diagnosis.**
-            ---SUGGESTIONS---
-            **Part 2: Suggested Follow-up Questions**
-            Based on your diagnosis, provide three brief, insightful follow-up questions a user might ask. 
-            **IMPORTANT: The questions must be answerable with text only. Do not suggest showing images or videos.**
-            """,
+            f"""Analyze this {crop_type} plant image and provide a detailed diagnosis.
+
+**Part 1: Diagnosis Report (Markdown Format)**
+1. **Title:** A short, descriptive title for the issue
+2. **Analysis:** Identify the likely pest or disease affecting this plant
+3. **Symptoms:** Describe the symptoms visible in the image
+4. **Organic Treatment:** Recommend organic/natural treatment methods
+5. **Chemical Treatment:** Recommend chemical treatment options if needed
+6. **Prevention:** Tips to prevent this issue in the future
+
+**IMPORTANT:** Provide your best diagnosis even if the image quality is not perfect.
+
+---SUGGESTIONS---
+
+**Part 2: Follow-up Questions**
+Suggest 3 relevant follow-up questions the user might want to ask.""",
             img,
         ]
-        response = gemini_model_vision.generate_content(prompt_parts)
+        
+        response = gemini_model.generate_content(prompt_parts)
         full_response = response.text
+        
         if "---SUGGESTIONS---" in full_response:
             report_text, suggestions_text = full_response.split("---SUGGESTIONS---", 1)
             title_line = report_text.strip().split('\n')[0]
-            title = title_line.replace('**Title:**', '').strip() if '**Title:**' in title_line else f"Diagnosis for {crop_type}"
-            suggestions = [s.strip() for s in suggestions_text.strip().split('\n') if s.strip() and s.strip().startswith(('1', '2', '3', '- '))]
+            title = title_line.replace('**Title:**', '').replace('#', '').strip() or f"Diagnosis for {crop_type}"
+            suggestions = [s.strip() for s in suggestions_text.strip().split('\n') if s.strip() and any(s.strip().startswith(str(i)) for i in range(1, 6))]
         else:
-            report_text, title, suggestions = full_response, f"General Diagnosis for {crop_type}", []
+            report_text, title, suggestions = full_response, f"Diagnosis for {crop_type}", []
+        
         report_html = markdown.markdown(report_text, extensions=['tables'])
-        return title, report_html, suggestions
+        return title, report_html, suggestions[:3]
     except Exception as e:
-        print(f"An error occurred during Gemini image analysis: {e}")
+        print(f"Error in diagnose_plant_issue: {e}")
         return "Error", "<p class='error-message'>Sorry, an error occurred while analyzing the image.</p>", []
 
 # --- WEBSITE ROUTES ---
 @app.route('/')
 def home():
-    if current_user.is_authenticated: return redirect(url_for('dashboard'))
-    # Enhanced home page with service status
-    services_status = {
-        'farm_planning': groq_chat is not None,
-        'plant_diagnosis': gemini_model_vision is not None
-    }
-    return render_template('index.html', services_status=services_status)
+    if current_user.is_authenticated: 
+        return redirect(url_for('dashboard'))
+    return render_template('index.html')
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -207,17 +229,20 @@ def register():
         if not all([name, email, password]):
             flash('All fields are required.', 'error')
             return redirect(url_for('register'))
+        
         conn = get_db_connection()
         user = conn.execute('SELECT * FROM users WHERE email = ?', (email,)).fetchone()
         if user:
             flash('Email address already exists.', 'error')
             conn.close()
             return redirect(url_for('register'))
+        
         hashed_password = generate_password_hash(password, method='pbkdf2:sha256')
         cursor = conn.cursor()
         cursor.execute('INSERT INTO users (name, email, password) VALUES (?, ?, ?)', (name, email, hashed_password))
         new_user_id = cursor.lastrowid
         conn.commit()
+        
         if 'guest_plan' in session:
             guest_plan = session['guest_plan']
             conn.execute(
@@ -226,6 +251,7 @@ def register():
             )
             conn.commit()
             session.pop('guest_plan', None)
+        
         conn.close()
         flash('Registration successful! Please log in.', 'success')
         return redirect(url_for('login'))
@@ -238,9 +264,11 @@ def login():
         if not email or not password:
             flash('Both email and password are required.', 'error')
             return redirect(url_for('login'))
+        
         conn = get_db_connection()
         user_data = conn.execute('SELECT * FROM users WHERE email = ?', (email,)).fetchone()
         conn.close()
+        
         if user_data and check_password_hash(user_data['password'], password):
             user = User(user_data['id'], user_data['email'], user_data['password'], user_data['name'])
             login_user(user)
@@ -286,14 +314,33 @@ def analytics():
 
 @app.route('/resources')
 def resources():
+    """Resource calculator - available to all users"""
     return render_template('resources.html')
 
 @app.route('/knowledge_base')
 def knowledge_base():
-    return render_template('knowledge_base.html')
+    """Knowledge Base - available to all users (guests and logged in)"""
+    user_location = None
+    user_name = None
+    
+    if current_user.is_authenticated:
+        user_name = current_user.name
+        # Get user's most recent location from their plans
+        conn = get_db_connection()
+        recent_plan = conn.execute(
+            'SELECT location, country FROM farm_plans WHERE user_id = ? ORDER BY created_at DESC LIMIT 1',
+            (current_user.id,)
+        ).fetchone()
+        conn.close()
+        
+        if recent_plan:
+            user_location = f"{recent_plan['location']}, {recent_plan['country']}"
+    
+    return render_template('knowledge_base.html', user_location=user_location, user_name=user_name)
 
 @app.route('/community_showcase')
 def community_showcase():
+    """Community showcase - available to all users"""
     conn = get_db_connection()
     public_showcases = conn.execute('''
         SELECT p.*, u.name as user_name 
@@ -308,32 +355,45 @@ def community_showcase():
 
 @app.route('/showcase/<showcase_id>')
 def showcase(showcase_id):
+    """View public showcase"""
     conn = get_db_connection()
-    plan = conn.execute('SELECT p.*, u.name as user_name FROM farm_plans p JOIN users u ON p.user_id = u.id WHERE showcase_id = ?', (showcase_id,)).fetchone()
+    plan = conn.execute(
+        'SELECT p.*, u.name as user_name FROM farm_plans p JOIN users u ON p.user_id = u.id WHERE showcase_id = ?',
+        (showcase_id,)
+    ).fetchone()
     conn.close()
-    if plan is None: abort(404)
+    if plan is None: 
+        abort(404)
     return render_template('showcase.html', plan=plan)
 
 @app.route('/download_pdf/<int:plan_id>')
 @login_required
 def download_pdf(plan_id):
+    """Download plan as PDF"""
     conn = get_db_connection()
     plan = conn.execute('SELECT * FROM farm_plans WHERE id = ? AND user_id = ?', (plan_id, current_user.id)).fetchone()
     conn.close()
-    if plan is None: return abort(404)
+    
+    if plan is None: 
+        return abort(404)
+    
     html_for_pdf = f"""
     <html><head><style>
-        body {{ font-family: sans-serif; font-size: 12px; }} h1, h2, h3 {{ color: #2c6b4f; }}
-        table {{ border-collapse: collapse; width: 100%; margin-top: 1em; margin-bottom: 1em; }} 
-        th, td {{ border: 1px solid #dddddd; text-align: left; padding: 8px; }}
+        body {{ font-family: sans-serif; font-size: 12px; }} 
+        h1, h2, h3 {{ color: #2c6b4f; }}
+        table {{ border-collapse: collapse; width: 100%; margin: 1em 0; }} 
+        th, td {{ border: 1px solid #ddd; text-align: left; padding: 8px; }}
         th {{ background-color: #f2f2f2; }} 
-        .footer {{ text-align: center; font-size: 10px; color: #777; position: fixed; bottom: 0; width: 100%; }}
+        .footer {{ text-align: center; font-size: 10px; color: #777; margin-top: 2em; }}
     </style></head><body>
-        <h1>Farm Plan for {plan['location']}</h1> <p><strong>Prepared for:</strong> {current_user.name}</p> <hr>
+        <h1>Farm Plan for {plan['location']}</h1>
+        <p><strong>Prepared for:</strong> {current_user.name}</p>
+        <hr>
         {plan['plan_html']}
-        <div class="footer"><p>Generated by YieldWise AI | A project by Onyeka Nwokike</p></div>
+        <div class="footer"><p>Generated by YieldWise AI</p></div>
     </body></html>
     """
+    
     pdf_bytes = HTML(string=html_for_pdf).write_pdf()
     response = make_response(pdf_bytes)
     response.headers['Content-Type'] = 'application/pdf'
@@ -344,11 +404,12 @@ def download_pdf(plan_id):
 @app.route('/api/generate', methods=['POST'])
 @limiter.limit("3 per day", key_func=lambda: current_user.id if current_user.is_authenticated else get_remote_address)
 def api_generate():
+    """Generate farm plan using Gemini AI"""
     data = request.get_json()
+    
     if not all(k in data for k in ['location', 'space', 'budget', 'country', 'currency']):
         return jsonify({'error': 'Missing required fields'}), 400
     
-    # Enhanced validation
     try:
         budget = float(data['budget'])
         if budget <= 0:
@@ -362,84 +423,379 @@ def api_generate():
     if len(data['space'].strip()) < 5:
         return jsonify({'error': 'Please provide more details about your available space'}), 400
     
-    plan_html, suggestions = generate_farm_plan(data['location'], data['space'], data['budget'], data['country'], data['currency'])
-    if "Error:" in plan_html: return jsonify({'error': plan_html}), 500
+    plan_html, suggestions = generate_farm_plan(
+        data['location'], data['space'], data['budget'], data['country'], data['currency']
+    )
+    
+    if "error-message" in plan_html: 
+        return jsonify({'error': plan_html}), 500
+    
+    # Handle guest users
     if not current_user.is_authenticated:
         if session.get('free_plan_used'):
-            return jsonify({'error': '<p class="error-message">Free plan already used. Please register to continue.</p>'}), 429
+            return jsonify({
+                'error': '<p class="error-message">Free plan already used. Please register to continue using YieldWise AI!</p>'
+            }), 429
+        
         session['free_plan_used'] = True
-        session['guest_plan'] = {'plan_html': plan_html, 'location': data['location'], 'country': data['country'], 'currency': data['currency']}
+        session['guest_plan'] = {
+            'plan_html': plan_html,
+            'location': data['location'],
+            'country': data['country'],
+            'currency': data['currency']
+        }
         return jsonify({'plan': plan_html, 'plan_id': None, 'suggestions': suggestions})
+    
+    # Save for logged-in users
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute('INSERT INTO farm_plans (user_id, location, country, currency, plan_html) VALUES (?, ?, ?, ?, ?)', (current_user.id, data['location'], data['country'], data['currency'], plan_html))
+    cursor.execute(
+        'INSERT INTO farm_plans (user_id, location, country, currency, plan_html) VALUES (?, ?, ?, ?, ?)',
+        (current_user.id, data['location'], data['country'], data['currency'], plan_html)
+    )
     plan_id = cursor.lastrowid
     conn.commit()
     conn.close()
+    
     return jsonify({'plan': plan_html, 'plan_id': plan_id, 'suggestions': suggestions})
 
 @app.route('/api/diagnose', methods=['POST'])
 @login_required
 @limiter.limit("3 per day")
 def api_diagnose():
+    """Diagnose plant disease using Gemini Vision AI"""
     if 'plant_image' not in request.files or 'crop_type' not in request.form:
         return jsonify({'error': 'Missing file or crop type'}), 400
+    
     file, crop_type = request.files['plant_image'], request.form['crop_type']
+    
     if file.filename == '' or not crop_type:
         return jsonify({'error': 'No selected file or crop type'}), 400
     
-    # Enhanced validation
     if len(crop_type.strip()) < 2:
         return jsonify({'error': 'Crop type must be at least 2 characters'}), 400
     
     # Check file size (5MB limit)
-    file.seek(0, 2)  # Seek to end
+    file.seek(0, 2)
     file_size = file.tell()
-    file.seek(0)  # Reset to beginning
+    file.seek(0)
     
-    if file_size > 5 * 1024 * 1024:  # 5MB
+    if file_size > 5 * 1024 * 1024:
         return jsonify({'error': 'Image size must be less than 5MB'}), 400
     
     if file and allowed_file(file.filename):
         title, report_html, suggestions = diagnose_plant_issue(file, crop_type)
-        if "Error" in title: return jsonify({'error': report_html}), 500
+        
+        if "Error" in title: 
+            return jsonify({'error': report_html}), 500
+        
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute('INSERT INTO diagnoses (user_id, title, crop_type, report_html) VALUES (?, ?, ?, ?)',(current_user.id, title, crop_type, report_html))
+        cursor.execute(
+            'INSERT INTO diagnoses (user_id, title, crop_type, report_html) VALUES (?, ?, ?, ?)',
+            (current_user.id, title, crop_type, report_html)
+        )
         diagnosis_id = cursor.lastrowid
         conn.commit()
         conn.close()
-        return jsonify({'title': title, 'diagnosis': report_html, 'suggestions': suggestions, 'diagnosis_id': diagnosis_id})
+        
+        return jsonify({
+            'title': title,
+            'diagnosis': report_html,
+            'suggestions': suggestions,
+            'diagnosis_id': diagnosis_id
+        })
     else:
-        return jsonify({'error': 'Invalid file type.'}), 400
+        return jsonify({'error': 'Invalid file type. Please upload PNG, JPG, or JPEG'}), 400
 
-@app.route('/api/create_showcase', methods=['POST'])
+@app.route('/api/follow_up', methods=['POST'])
 @login_required
-def api_create_showcase():
+def api_follow_up():
+    """Follow-up chat for farm plans using Gemini AI"""
     data = request.get_json()
-    plan_id = data.get('plan_id')
-    if not plan_id: return jsonify({'error': 'Plan ID is required'}), 400
+    plan_id, question = data.get('plan_id'), data.get('question')
     
-    # Validate plan ownership
+    if not all([plan_id, question]): 
+        return jsonify({'error': 'Missing data'}), 400
+    
+    if len(question.strip()) < 3:
+        return jsonify({'error': 'Question must be at least 3 characters'}), 400
+    
     conn = get_db_connection()
-    plan = conn.execute('SELECT * FROM farm_plans WHERE id = ? AND user_id = ?', (plan_id, current_user.id)).fetchone()
+    plan = conn.execute(
+        'SELECT * FROM farm_plans WHERE id = ? AND user_id = ?',
+        (plan_id, current_user.id)
+    ).fetchone()
+    
     if not plan:
         conn.close()
         return jsonify({'error': 'Plan not found or access denied'}), 404
     
-    existing = conn.execute('SELECT showcase_id FROM farm_plans WHERE id = ? AND user_id = ?', (plan_id, current_user.id)).fetchone()
+    history = conn.execute(
+        'SELECT role, content FROM chat_history WHERE plan_id = ? ORDER BY created_at ASC',
+        (plan_id,)
+    ).fetchall()
+    
+    conn.execute('INSERT INTO chat_history (plan_id, role, content) VALUES (?, ?, ?)', (plan_id, 'user', question))
+    conn.commit()
+    
+    try:
+        if not gemini_model:
+            conn.close()
+            return jsonify({'error': 'AI service is currently unavailable.'}), 503
+        
+        # Build conversation context
+        conversation = f"Initial Farm Plan:\n{plan['plan_html']}\n\n"
+        for message in history:
+            conversation += f"{message['role'].capitalize()}: {message['content']}\n"
+        conversation += f"\nUser's new question: {question}\n\nProvide a helpful, practical answer:"
+        
+        response = gemini_model.generate_content(conversation)
+        answer = response.text
+        
+        conn.execute('INSERT INTO chat_history (plan_id, role, content) VALUES (?, ?, ?)', (plan_id, 'assistant', answer))
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'answer': markdown.markdown(answer)})
+    except Exception as e:
+        conn.close()
+        print(f"Error in follow_up: {e}")
+        return jsonify({'error': 'Sorry, an error occurred.'}), 500
+
+@app.route('/api/diagnose_follow_up', methods=['POST'])
+@login_required
+def api_diagnose_follow_up():
+    """Follow-up chat for diagnoses using Gemini AI"""
+    data = request.get_json()
+    diagnosis_id, question = data.get('diagnosis_id'), data.get('question')
+    
+    if not all([diagnosis_id, question]): 
+        return jsonify({'error': 'Missing data'}), 400
+    
+    if len(question.strip()) < 3:
+        return jsonify({'error': 'Question must be at least 3 characters'}), 400
+    
+    conn = get_db_connection()
+    diagnosis = conn.execute(
+        'SELECT * FROM diagnoses WHERE id = ? AND user_id = ?',
+        (diagnosis_id, current_user.id)
+    ).fetchone()
+    
+    if not diagnosis:
+        conn.close()
+        return jsonify({'error': 'Diagnosis not found or access denied'}), 404
+    
+    history = conn.execute(
+        'SELECT role, content FROM diagnoses_chat_history WHERE diagnosis_id = ? ORDER BY created_at ASC',
+        (diagnosis_id,)
+    ).fetchall()
+    
+    conn.execute('INSERT INTO diagnoses_chat_history (diagnosis_id, role, content) VALUES (?, ?, ?)', (diagnosis_id, 'user', question))
+    conn.commit()
+    
+    try:
+        if not gemini_model:
+            conn.close()
+            return jsonify({'error': 'AI service is currently unavailable.'}), 503
+        
+        # Build conversation context
+        conversation = f"Initial Diagnosis:\n{diagnosis['report_html']}\n\n"
+        for message in history:
+            conversation += f"{message['role'].capitalize()}: {message['content']}\n"
+        conversation += f"\nUser's new question: {question}\n\nProvide a helpful answer:"
+        
+        response = gemini_model.generate_content(conversation)
+        answer = response.text
+        
+        conn.execute('INSERT INTO diagnoses_chat_history (diagnosis_id, role, content) VALUES (?, ?, ?)', (diagnosis_id, 'assistant', answer))
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'answer': markdown.markdown(answer)})
+    except Exception as e:
+        conn.close()
+        print(f"Error in diagnose_follow_up: {e}")
+        return jsonify({'error': 'Sorry, an error occurred.'}), 500
+
+@app.route('/api/knowledge_query', methods=['POST'])
+def api_knowledge_query():
+    """Answer farming questions using Gemini AI - Available to ALL users"""
+    data = request.get_json()
+    query = data.get('query') or data.get('question')
+    
+    if not query or len(query.strip()) < 3:
+        return jsonify({'error': 'Question must be at least 3 characters'}), 400
+    
+    try:
+        if not gemini_model:
+            return jsonify({'error': 'AI service is currently unavailable.'}), 503
+        
+        # Get user context if available
+        user_context = ""
+        if current_user.is_authenticated:
+            conn = get_db_connection()
+            recent_plan = conn.execute(
+                'SELECT location, country FROM farm_plans WHERE user_id = ? ORDER BY created_at DESC LIMIT 1',
+                (current_user.id,)
+            ).fetchone()
+            conn.close()
+            
+            if recent_plan:
+                user_context = f"\n\nUser is located in: {recent_plan['location']}, {recent_plan['country']}"
+        
+        prompt = f"""You are an expert agricultural advisor with decades of farming experience. Answer this farming question with practical, actionable advice.
+
+Question: {query}{user_context}
+
+Provide a clear, helpful answer in 2-4 paragraphs. Focus on:
+- Practical advice farmers can implement immediately
+- Location-specific recommendations when relevant
+- Cost-effective solutions
+- Both traditional and modern approaches
+
+Keep it conversational and easy to understand."""
+        
+        response = gemini_model.generate_content(prompt)
+        answer_html = markdown.markdown(response.text)
+        
+        return jsonify({'answer': answer_html, 'response': answer_html})
+    except Exception as e:
+        print(f"Error in knowledge_query: {e}")
+        return jsonify({'error': 'Sorry, an error occurred. Please try again.'}), 500
+
+# --- UTILITY API ROUTES ---
+@app.route('/api/create_showcase', methods=['POST'])
+@login_required
+def api_create_showcase():
+    """Create public showcase for a plan"""
+    data = request.get_json()
+    plan_id = data.get('plan_id')
+    
+    if not plan_id: 
+        return jsonify({'error': 'Plan ID is required'}), 400
+    
+    conn = get_db_connection()
+    plan = conn.execute(
+        'SELECT * FROM farm_plans WHERE id = ? AND user_id = ?',
+        (plan_id, current_user.id)
+    ).fetchone()
+    
+    if not plan:
+        conn.close()
+        return jsonify({'error': 'Plan not found or access denied'}), 404
+    
+    existing = conn.execute(
+        'SELECT showcase_id FROM farm_plans WHERE id = ? AND user_id = ?',
+        (plan_id, current_user.id)
+    ).fetchone()
+    
     if existing and existing['showcase_id']:
         conn.close()
         return jsonify({'showcase_id': existing['showcase_id']})
+    
     showcase_id = str(uuid.uuid4())
-    conn.execute('UPDATE farm_plans SET showcase_id = ? WHERE id = ? AND user_id = ?', (showcase_id, plan_id, current_user.id))
+    conn.execute(
+        'UPDATE farm_plans SET showcase_id = ? WHERE id = ? AND user_id = ?',
+        (showcase_id, plan_id, current_user.id)
+    )
     conn.commit()
     conn.close()
+    
     return jsonify({'showcase_id': showcase_id})
+
+@app.route('/api/get_plan/<int:plan_id>', methods=['GET'])
+@login_required
+def get_plan(plan_id):
+    """Get plan details with chat history"""
+    conn = get_db_connection()
+    plan = conn.execute(
+        'SELECT * FROM farm_plans WHERE id = ? AND user_id = ?',
+        (plan_id, current_user.id)
+    ).fetchone()
+    chat_history = conn.execute(
+        'SELECT role, content FROM chat_history WHERE plan_id = ? ORDER BY created_at ASC',
+        (plan_id,)
+    ).fetchall()
+    conn.close()
+    
+    if plan is None: 
+        return jsonify({'error': 'Plan not found'}), 404
+    
+    return jsonify({
+        'plan': dict(plan),
+        'chat_history': [dict(row) for row in chat_history]
+    })
+
+@app.route('/api/delete_plan/<int:plan_id>', methods=['DELETE'])
+@login_required
+def delete_plan(plan_id):
+    """Delete a farm plan"""
+    conn = get_db_connection()
+    plan = conn.execute(
+        'SELECT * FROM farm_plans WHERE id = ? AND user_id = ?',
+        (plan_id, current_user.id)
+    ).fetchone()
+    
+    if not plan:
+        conn.close()
+        return jsonify({'error': 'Plan not found or access denied'}), 404
+    
+    conn.execute('DELETE FROM chat_history WHERE plan_id = ?', (plan_id,))
+    conn.execute('DELETE FROM farm_plans WHERE id = ? AND user_id = ?', (plan_id, current_user.id))
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'success': True})
+
+@app.route('/api/get_diagnosis/<int:diagnosis_id>', methods=['GET'])
+@login_required
+def get_diagnosis(diagnosis_id):
+    """Get diagnosis details with chat history"""
+    conn = get_db_connection()
+    diagnosis = conn.execute(
+        'SELECT * FROM diagnoses WHERE id = ? AND user_id = ?',
+        (diagnosis_id, current_user.id)
+    ).fetchone()
+    chat_history = conn.execute(
+        'SELECT role, content FROM diagnoses_chat_history WHERE diagnosis_id = ? ORDER BY created_at ASC',
+        (diagnosis_id,)
+    ).fetchall()
+    conn.close()
+    
+    if diagnosis is None: 
+        return jsonify({'error': 'Diagnosis not found'}), 404
+    
+    return jsonify({
+        'diagnosis': dict(diagnosis),
+        'chat_history': [dict(row) for row in chat_history]
+    })
+    
+@app.route('/api/delete_diagnosis/<int:diagnosis_id>', methods=['DELETE'])
+@login_required
+def delete_diagnosis(diagnosis_id):
+    """Delete a diagnosis"""
+    conn = get_db_connection()
+    diagnosis = conn.execute(
+        'SELECT * FROM diagnoses WHERE id = ? AND user_id = ?',
+        (diagnosis_id, current_user.id)
+    ).fetchone()
+    
+    if not diagnosis:
+        conn.close()
+        return jsonify({'error': 'Diagnosis not found or access denied'}), 404
+    
+    conn.execute('DELETE FROM diagnoses_chat_history WHERE diagnosis_id = ?', (diagnosis_id,))
+    conn.execute('DELETE FROM diagnoses WHERE id = ? AND user_id = ?', (diagnosis_id, current_user.id))
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'success': True})
 
 @app.route('/api/search_plans', methods=['GET'])
 @login_required
 def api_search_plans():
+    """Search user's plans"""
     query = request.args.get('q', '').strip()
     if not query:
         return jsonify({'plans': []})
@@ -458,13 +814,8 @@ def api_search_plans():
 def api_export_data():
     """Export user's data as JSON"""
     conn = get_db_connection()
-    
-    # Get user's plans
     plans = conn.execute('SELECT * FROM farm_plans WHERE user_id = ?', (current_user.id,)).fetchall()
-    
-    # Get user's diagnoses
     diagnoses = conn.execute('SELECT * FROM diagnoses WHERE user_id = ?', (current_user.id,)).fetchall()
-    
     conn.close()
     
     export_data = {
@@ -481,174 +832,18 @@ def api_export_data():
     response.headers['Content-Disposition'] = f'attachment; filename=yieldwise_data_{current_user.id}.json'
     return response
 
-@app.route('/api/get_plan/<int:plan_id>', methods=['GET'])
-@login_required
-def get_plan(plan_id):
-    conn = get_db_connection()
-    plan = conn.execute('SELECT * FROM farm_plans WHERE id = ? AND user_id = ?', (plan_id, current_user.id)).fetchone()
-    chat_history = conn.execute('SELECT role, content FROM chat_history WHERE plan_id = ? ORDER BY created_at ASC', (plan_id,)).fetchall()
-    conn.close()
-    if plan is None: return jsonify({'error': 'Plan not found'}), 404
-    return jsonify({'plan': dict(plan), 'chat_history': [dict(row) for row in chat_history]})
-
-@app.route('/api/delete_plan/<int:plan_id>', methods=['DELETE'])
-@login_required
-def delete_plan(plan_id):
-    conn = get_db_connection()
-    # Verify ownership before deletion
-    plan = conn.execute('SELECT * FROM farm_plans WHERE id = ? AND user_id = ?', (plan_id, current_user.id)).fetchone()
-    if not plan:
-        conn.close()
-        return jsonify({'error': 'Plan not found or access denied'}), 404
-    
-    conn.execute('DELETE FROM chat_history WHERE plan_id = ?', (plan_id,))
-    conn.execute('DELETE FROM farm_plans WHERE id = ? AND user_id = ?', (plan_id, current_user.id))
-    conn.commit()
-    conn.close()
-    return jsonify({'success': True})
-
-@app.route('/api/follow_up', methods=['POST'])
-@login_required
-def api_follow_up():
-    data = request.get_json()
-    plan_id, question = data.get('plan_id'), data.get('question')
-    if not all([plan_id, question]): return jsonify({'error': 'Missing data'}), 400
-    
-    # Validate question length
-    if len(question.strip()) < 3:
-        return jsonify({'error': 'Question must be at least 3 characters'}), 400
-    
-    conn = get_db_connection()
-    plan = conn.execute('SELECT * FROM farm_plans WHERE id = ? AND user_id = ?', (plan_id, current_user.id)).fetchone()
-    if not plan:
-        conn.close()
-        return jsonify({'error': 'Plan not found or access denied'}), 404
-    
-    history = conn.execute('SELECT role, content FROM chat_history WHERE plan_id = ? ORDER BY created_at ASC', (plan_id,)).fetchall()
-    conn.execute('INSERT INTO chat_history (plan_id, role, content) VALUES (?, ?, ?)', (plan_id, 'user', question))
-    conn.commit()
-    conversation_history_for_groq = "Initial Plan:\n" + plan['plan_html'] + "\n\n"
-    for message in history:
-        conversation_history_for_groq += f"{message['role'].capitalize()}: {message['content']}\n"
-    conversation_history_for_groq += f"User: {question}"
-    try:
-        if not groq_chat:
-            conn.close()
-            return jsonify({'error': 'Farm planning service is currently unavailable. Please contact support to enable GROQ API.'}), 503
-        response = groq_chat.invoke(conversation_history_for_groq)
-        answer = response.content
-        conn.execute('INSERT INTO chat_history (plan_id, role, content) VALUES (?, ?, ?)', (plan_id, 'assistant', answer))
-        conn.commit()
-        conn.close()
-        return jsonify({'answer': markdown.markdown(answer)})
-    except Exception as e:
-        conn.close()
-        print(f"An error occurred in follow-up: {e}")
-        return jsonify({'error': 'Sorry, an error occurred.'}), 500
-
-@app.route('/api/get_diagnosis/<int:diagnosis_id>', methods=['GET'])
-@login_required
-def get_diagnosis(diagnosis_id):
-    conn = get_db_connection()
-    diagnosis = conn.execute('SELECT * FROM diagnoses WHERE id = ? AND user_id = ?', (diagnosis_id, current_user.id)).fetchone()
-    chat_history = conn.execute('SELECT role, content FROM diagnoses_chat_history WHERE diagnosis_id = ? ORDER BY created_at ASC', (diagnosis_id,)).fetchall()
-    conn.close()
-    if diagnosis is None: return jsonify({'error': 'Diagnosis not found'}), 404
-    return jsonify({'diagnosis': dict(diagnosis), 'chat_history': [dict(row) for row in chat_history]})
-    
-@app.route('/api/delete_diagnosis/<int:diagnosis_id>', methods=['DELETE'])
-@login_required
-def delete_diagnosis(diagnosis_id):
-    conn = get_db_connection()
-    # Verify ownership before deletion
-    diagnosis = conn.execute('SELECT * FROM diagnoses WHERE id = ? AND user_id = ?', (diagnosis_id, current_user.id)).fetchone()
-    if not diagnosis:
-        conn.close()
-        return jsonify({'error': 'Diagnosis not found or access denied'}), 404
-    
-    conn.execute('DELETE FROM diagnoses_chat_history WHERE diagnosis_id = ?', (diagnosis_id,))
-    conn.execute('DELETE FROM diagnoses WHERE id = ? AND user_id = ?', (diagnosis_id, current_user.id))
-    conn.commit()
-    conn.close()
-    return jsonify({'success': True})
-
-@app.route('/api/diagnose_follow_up', methods=['POST'])
-@login_required
-def api_diagnose_follow_up():
-    data = request.get_json()
-    diagnosis_id, question = data.get('diagnosis_id'), data.get('question')
-    if not all([diagnosis_id, question]): return jsonify({'error': 'Missing data'}), 400
-    
-    # Validate question length
-    if len(question.strip()) < 3:
-        return jsonify({'error': 'Question must be at least 3 characters'}), 400
-    
-    conn = get_db_connection()
-    diagnosis = conn.execute('SELECT * FROM diagnoses WHERE id = ? AND user_id = ?', (diagnosis_id, current_user.id)).fetchone()
-    if not diagnosis:
-        conn.close()
-        return jsonify({'error': 'Diagnosis not found or access denied'}), 404
-    
-    history = conn.execute('SELECT role, content FROM diagnoses_chat_history WHERE diagnosis_id = ? ORDER BY created_at ASC', (diagnosis_id,)).fetchall()
-    conn.execute('INSERT INTO diagnoses_chat_history (diagnosis_id, role, content) VALUES (?, ?, ?)', (diagnosis_id, 'user', question))
-    conn.commit()
-    conversation_for_gemini = ["Initial Diagnosis Report:\n" + diagnosis['report_html']]
-    for message in history:
-        conversation_for_gemini.append(f"{message['role'].capitalize()}: {message['content']}")
-    conversation_for_gemini.append(f"User: {question}")
-    try:
-        if not gemini_model_vision:
-            conn.close()
-            return jsonify({'error': 'Plant diagnosis service is currently unavailable. Please contact support to enable Google Gemini API.'}), 503
-        response = gemini_model_vision.generate_content("\n".join(conversation_for_gemini))
-        answer = response.text
-        conn.execute('INSERT INTO diagnoses_chat_history (diagnosis_id, role, content) VALUES (?, ?, ?)', (diagnosis_id, 'assistant', answer))
-        conn.commit()
-        conn.close()
-        return jsonify({'answer': markdown.markdown(answer)})
-    except Exception as e:
-        conn.close()
-        print(f"An error occurred in diagnosis follow-up: {e}")
-        return jsonify({'error': 'Sorry, an error occurred.'}), 500
-
-@app.route('/api/knowledge_query', methods=['POST'])
-@login_required
-def api_knowledge_query():
-    data = request.get_json()
-    question = data.get('question')
-    if not question or len(question.strip()) < 3:
-        return jsonify({'error': 'Question must be at least 3 characters'}), 400
-    
-    try:
-        if not gemini_model_vision:
-            return jsonify({'error': 'AI service is currently unavailable.'}), 503
-        
-        prompt = f"""You are an expert agricultural advisor. Answer this farming question concisely and practically:
-
-Question: {question}
-
-Provide a clear, actionable answer in 2-4 paragraphs. Focus on practical advice that farmers can implement."""
-        
-        response = gemini_model_vision.generate_content(prompt)
-        answer_html = markdown.markdown(response.text)
-        return jsonify({'answer': answer_html})
-    except Exception as e:
-        print(f"Error in knowledge query: {e}")
-        return jsonify({'error': 'Sorry, an error occurred.'}), 500
-
-# --- ENHANCED HEALTH CHECK ENDPOINT ---
 @app.route('/api/health', methods=['HEAD', 'GET'])
 def health_check():
+    """System health check"""
     return jsonify({
-        'status': 'healthy', 
+        'status': 'healthy',
         'timestamp': datetime.now().isoformat(),
         'services': {
-            'groq_api': 'available' if groq_chat else 'unavailable',
-            'gemini_api': 'available' if gemini_model_vision else 'unavailable',
+            'gemini_api': 'available' if gemini_model else 'unavailable',
             'database': 'available'
         },
-        'version': '2.0.0',
-        'features': ['farm_planning', 'plant_diagnosis', 'chat_support', 'pdf_export']
+        'version': '3.0.0',
+        'features': ['farm_planning', 'plant_diagnosis', 'knowledge_base', 'chat_support', 'pdf_export']
     })
 
 # --- ERROR HANDLERS ---
@@ -664,8 +859,7 @@ def internal_error(error):
 def too_large(error):
     return jsonify({'error': 'File too large. Maximum size is 16MB.'}), 413
 
-# --- MAIN EXECUTION BLOCK ---
-# --- MAIN EXECUTION BLOCK ---
+# --- MAIN EXECUTION ---
 if __name__ == '__main__':
     init_db()
     app.run(host='0.0.0.0', port=5000, debug=True)
