@@ -4,9 +4,16 @@
 YieldWise AI is a comprehensive agricultural technology platform that helps farmers plan profitable farms, diagnose plant diseases with AI-powered image analysis, and access expert farming knowledge. The platform has been significantly enhanced with multiple FREE features to scale it into a top-tier agricultural startup solution.
 
 ## Current State
-**Status:** Fully Operational ✅  
+**Status:** Configured and Running ✅  
 **Last Updated:** October 4, 2025  
 **Version:** 2.0.0 (Significantly Enhanced)
+**Environment:** Replit (imported and configured)
+
+⚠️ **Important:** To enable AI features, add these API keys to Replit Secrets:
+- `GEMINI_API_KEY` or `GOOGLE_API_KEY` - Required for AI Plant Doctor and Knowledge Base (get from https://aistudio.google.com/)
+- `GROQ_API_KEY` - Required for AI Farm Planner (get from https://console.groq.com/)
+
+The app will run without these keys, but AI features will be disabled.
 
 ## Core Features
 
