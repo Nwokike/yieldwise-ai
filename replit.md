@@ -173,7 +173,6 @@ The app will run without these keys, but AI features will be disabled.
 - currency
 - plan_html (generated AI content)
 - showcase_id (for public sharing)
-- is_promoted (monetization field)
 - created_at
 
 ### chat_history

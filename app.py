@@ -78,7 +78,6 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, 
             location TEXT NOT NULL, country TEXT, currency TEXT, 
             plan_html TEXT NOT NULL, showcase_id TEXT, 
-            is_promoted INTEGER DEFAULT 0, -- New monetization field
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
             FOREIGN KEY (user_id) REFERENCES users (id)
         );
@@ -286,17 +285,14 @@ def analytics():
     return render_template('analytics.html', plans=plans, diagnoses=diagnoses, plans_data=plans_data)
 
 @app.route('/resources')
-@login_required
 def resources():
     return render_template('resources.html')
 
 @app.route('/knowledge_base')
-@login_required
 def knowledge_base():
     return render_template('knowledge_base.html')
 
 @app.route('/community_showcase')
-@login_required
 def community_showcase():
     conn = get_db_connection()
     public_showcases = conn.execute('''
