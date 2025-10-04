@@ -4,3 +4,36 @@ expertMode = true
 
 [nix]
 channel = "stable-25_05"
+packages = ["bash", "c-ares", "cacert", "cargo", "fontconfig", "freetype", "ghostscript", "glib", "glibcLocales", "grpc", "harfbuzz", "lcms2", "libffi", "libiconv", "libimagequant", "libjpeg", "libtiff", "libwebp", "libxcrypt", "openjpeg", "openssl", "pango", "pkg-config", "rustc", "tcl", "tk", "zlib"]
+
+[workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "YieldWise Server"
+
+[[workflows.workflow]]
+name = "YieldWise Server"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python app.py"
+waitForPort = 5000
+
+[workflows.workflow.metadata]
+outputType = "webview"
+
+[[ports]]
+localPort = 5000
+externalPort = 80
+
+[[ports]]
+localPort = 38399
+externalPort = 3000

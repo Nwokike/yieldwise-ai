@@ -91,3 +91,15 @@ zopfli==0.2.3.post1
 zstandard==0.24.0
 gunicorn>=20.1.0
 
+flask
+flask-limiter
+flask-login
+google-generativeai
+groq
+gunicorn
+langchain-groq
+markdown
+pillow
+python-dotenv
+weasyprint
+werkzeug
