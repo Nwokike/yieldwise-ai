@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+
+{% block title %}Knowledge Base - YieldWise AI{% endblock %}
+
+{% block content %}
+<div class="knowledge-base-header">
+    <div class="container">
+        <h1 class="display-5 fw-bold mb-3">
+            <i class="bi bi-book"></i> Farming Knowledge Base
+        </h1>
+        <p class="lead mb-4">Ask any farming question and get instant AI-powered answers</p>
+        
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <div class="card shadow-lg border-0">
+                    <div class="card-body p-4">
+                        <form id="question-form">
+                            <div class="input-group input-group-lg">
+                                <input type="text" class="form-control" id="question" placeholder="Ask a farming question..." required>
+                                <button class="btn btn-success" type="submit">
+                                    <i class="bi bi-search"></i> Ask
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container py-5">
+    <div id="answer-section" class="card shadow-sm mb-4" style="display: none;">
+        <div class="card-header bg-success text-white">
+            <h5 class="mb-0 fw-bold"><i class="bi bi-lightbulb"></i> Answer</h5>
+        </div>
+        <div class="card-body">
+            <div id="answer-content" class="p-3"></div>
+        </div>
+    </div>
+
+    <h3 class="fw-bold mb-4">Popular Topics</h3>
+    <div class="row g-4">
+        <div class="col-md-6">
+            <div class="card guide-card h-100 shadow-sm">
+                <div class="card-body">
+                    <h5 class="fw-bold text-success mb-3">
+                        <i class="bi bi-bug"></i> Pest Management
+                    </h5>
+                    <p class="text-muted">Learn about organic and chemical methods to control common farm pests. Protect your crops naturally and effectively.</p>
+                    <button class="btn btn-sm btn-outline-success" onclick="askQuestion('How do I manage pests organically?')">
+                        Read More <i class="bi bi-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card guide-card h-100 shadow-sm">
+                <div class="card-body">
+                    <h5 class="fw-bold text-success mb-3">
+                        <i class="bi bi-moisture"></i> Soil Health
+                    </h5>
+                    <p class="text-muted">Discover how to maintain healthy soil through pH management, composting, and proper nutrient balance.</p>
+                    <button class="btn btn-sm btn-outline-success" onclick="askQuestion('How do I improve soil health?')">
+                        Read More <i class="bi bi-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card guide-card h-100 shadow-sm">
+                <div class="card-body">
+                    <h5 class="fw-bold text-success mb-3">
+                        <i class="bi bi-droplet"></i> Water Management
+                    </h5>
+                    <p class="text-muted">Master irrigation techniques, water conservation, and efficient watering schedules for different crops.</p>
+                    <button class="btn btn-sm btn-outline-success" onclick="askQuestion('What are the best irrigation techniques?')">
+                        Read More <i class="bi bi-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card guide-card h-100 shadow-sm">
+                <div class="card-body">
+                    <h5 class="fw-bold text-success mb-3">
+                        <i class="bi bi-arrow-repeat"></i> Crop Rotation
+                    </h5>
+                    <p class="text-muted">Understand crop rotation principles to maintain soil fertility and reduce pest problems naturally.</p>
+                    <button class="btn btn-sm btn-outline-success" onclick="askQuestion('What is the best crop rotation strategy?')">
+                        Read More <i class="bi bi-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card guide-card h-100 shadow-sm">
+                <div class="card-body">
+                    <h5 class="fw-bold text-success mb-3">
+                        <i class="bi bi-leaf"></i> Organic Farming
+                    </h5>
+                    <p class="text-muted">Learn natural farming methods, organic fertilizers, and sustainable agricultural practices.</p>
+                    <button class="btn btn-sm btn-outline-success" onclick="askQuestion('How do I start organic farming?')">
+                        Read More <i class="bi bi-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card guide-card h-100 shadow-sm">
+                <div class="card-body">
+                    <h5 class="fw-bold text-success mb-3">
+                        <i class="bi bi-cart"></i> Marketing Tips
+                    </h5>
+                    <p class="text-muted">Discover strategies for selling your produce, finding buyers, and maximizing your farm income.</p>
+                    <button class="btn btn-sm btn-outline-success" onclick="askQuestion('How do I market my farm produce?')">
+                        Read More <i class="bi bi-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('question-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const question = document.getElementById('question').value;
+    await askQuestion(question);
+});
+
+async function askQuestion(question) {
+    try {
+        showLoading();
+        const response = await fetch('/api/knowledge_query', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query: question })
+        });
+        
+        const result = await response.json();
+        hideLoading();
+        
+        if (!response.ok) {
+            throw new Error(result.error || 'An error occurred');
+        }
+        
+        const markdown = result.answer || result.response;
+        document.getElementById('answer-content').innerHTML = markdown;
+        document.getElementById('answer-section').style.display = 'block';
+        document.getElementById('answer-section').scrollIntoView({ behavior: 'smooth' });
+        
+        showNotification('Answer generated!', 'success');
+    } catch (error) {
+        hideLoading();
+        showNotification(error.message, 'danger');
+    }
+}
+</script>
+{% endblock %}

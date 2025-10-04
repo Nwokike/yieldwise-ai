@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block title %}Server Error - YieldWise AI{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="text-center">
+                <i class="bi bi-exclamation-circle text-danger" style="font-size: 5rem;"></i>
+                <h1 class="display-1 fw-bold mt-3">500</h1>
+                <h2 class="mb-3">Server Error</h2>
+                <p class="text-muted mb-4">Something went wrong on our end. We're working to fix it!</p>
+                <a href="{{ url_for('home') }}" class="btn btn-success btn-lg">
+                    <i class="bi bi-house-door"></i> Back to Home
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
