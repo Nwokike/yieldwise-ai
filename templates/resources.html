@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resource Calculator - YieldWise AI</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="{{ url_for('static', filename='js/utils.js') }}"></script>
+    <style>
+        .calc-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+        
+        .calc-card {
+            background: linear-gradient(135deg, #fff 0%, #f9f9f9 100%);
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        }
+        
+        .calc-card h3 {
+            color: #2c6b4f;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .result-box {
+            background: #e8f5e9;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+            border-left: 4px solid #2c6b4f;
+        }
+        
+        .result-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #2c6b4f;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-layout">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>🌱 YieldWise AI</h2>
+            </div>
+            <a href="{{ url_for('dashboard') }}" class="tool-link">📝 AI Farm Planner</a>
+            <a href="{{ url_for('diagnostician') }}" class="tool-link">🔬 AI Diagnostician</a>
+            <a href="{{ url_for('analytics') }}" class="tool-link">📊 Analytics Dashboard</a>
+            <a href="{{ url_for('resources') }}" class="tool-link active">🧮 Resource Calculator</a>
+            <a href="{{ url_for('knowledge_base') }}" class="tool-link">📚 Knowledge Base</a>
+            <a href="{{ url_for('community_showcase') }}" class="tool-link">🌍 Community Gallery</a>
+            <div class="sidebar-footer">
+                <a href="{{ url_for('logout') }}" class="logout-button">Log Out</a>
+            </div>
+        </aside>
+        <main class="main-content">
+            <div class="container">
+                <h1>🧮 Smart Resource Calculator</h1>
+                <p>Calculate seeds, fertilizer, water, and labor needs for your farm</p>
+                
+                <div class="calc-grid">
+                    <div class="calc-card">
+                        <h3>🌾 Seeds Calculator</h3>
+                        <div class="form-group">
+                            <label>Farm Size (sq meters)</label>
+                            <input type="number" id="seed-area" placeholder="e.g., 100">
+                        </div>
+                        <div class="form-group">
+                            <label>Crop Type</label>
+                            <select id="seed-crop">
+                                <option>Tomatoes</option>
+                                <option>Maize/Corn</option>
+                                <option>Lettuce</option>
+                                <option>Peppers</option>
+                                <option>Spinach</option>
+                            </select>
+                        </div>
+                        <button onclick="calculateSeeds()" class="button">Calculate</button>
+                        <div id="seed-result" class="result-box hidden"></div>
+                    </div>
+                    
+                    <div class="calc-card">
+                        <h3>💧 Water Calculator</h3>
+                        <div class="form-group">
+                            <label>Farm Size (sq meters)</label>
+                            <input type="number" id="water-area" placeholder="e.g., 100">
+                        </div>
+                        <div class="form-group">
+                            <label>Climate</label>
+                            <select id="water-climate">
+                                <option>Tropical (High Rainfall)</option>
+                                <option>Arid (Low Rainfall)</option>
+                                <option>Temperate (Moderate)</option>
+                            </select>
+                        </div>
+                        <button onclick="calculateWater()" class="button">Calculate</button>
+                        <div id="water-result" class="result-box hidden"></div>
+                    </div>
+                    
+                    <div class="calc-card">
+                        <h3>🌱 Fertilizer Calculator</h3>
+                        <div class="form-group">
+                            <label>Farm Size (sq meters)</label>
+                            <input type="number" id="fert-area" placeholder="e.g., 100">
+                        </div>
+                        <div class="form-group">
+                            <label>Soil Type</label>
+                            <select id="fert-soil">
+                                <option>Clay</option>
+                                <option>Sandy</option>
+                                <option>Loamy</option>
+                            </select>
+                        </div>
+                        <button onclick="calculateFertilizer()" class="button">Calculate</button>
+                        <div id="fert-result" class="result-box hidden"></div>
+                    </div>
+                    
+                    <div class="calc-card">
+                        <h3>👷 Labor Calculator</h3>
+                        <div class="form-group">
+                            <label>Farm Size (sq meters)</label>
+                            <input type="number" id="labor-area" placeholder="e.g., 100">
+                        </div>
+                        <div class="form-group">
+                            <label>Activity Type</label>
+                            <select id="labor-activity">
+                                <option>Land Preparation</option>
+                                <option>Planting</option>
+                                <option>Weeding</option>
+                                <option>Harvesting</option>
+                            </select>
+                        </div>
+                        <button onclick="calculateLabor()" class="button">Calculate</button>
+                        <div id="labor-result" class="result-box hidden"></div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        function calculateSeeds() {
+            const area = parseFloat(document.getElementById('seed-area').value);
+            const crop = document.getElementById('seed-crop').value;
+            if (!area) return NotificationManager.error('Please enter farm size');
+            
+            const rates = {
+                'Tomatoes': 0.3, 'Maize/Corn': 0.5, 'Lettuce': 0.2,
+                'Peppers': 0.25, 'Spinach': 0.15
+            };
+            
+            const kgNeeded = (area * rates[crop] || 0.3).toFixed(2);
+            const result = document.getElementById('seed-result');
+            result.innerHTML = `
+                <p>Seeds Needed: <span class="result-value">${kgNeeded} kg</span></p>
+                <p style="font-size:0.9rem;color:#666;margin-top:10px;">
+                    For ${area} sq meters of ${crop}</p>
+            `;
+            result.classList.remove('hidden');
+            NotificationManager.success('Seeds calculated!');
+        }
+
+        function calculateWater() {
+            const area = parseFloat(document.getElementById('water-area').value);
+            const climate = document.getElementById('water-climate').value;
+            if (!area) return NotificationManager.error('Please enter farm size');
+            
+            const rates = {
+                'Tropical (High Rainfall)': 2,
+                'Arid (Low Rainfall)': 5,
+                'Temperate (Moderate)': 3
+            };
+            
+            const litersPerDay = (area * rates[climate]).toFixed(0);
+            const result = document.getElementById('water-result');
+            result.innerHTML = `
+                <p>Water Needed: <span class="result-value">${litersPerDay} L/day</span></p>
+                <p style="font-size:0.9rem;color:#666;margin-top:10px;">
+                    Weekly: ${(litersPerDay * 7).toFixed(0)} liters</p>
+            `;
+            result.classList.remove('hidden');
+            NotificationManager.success('Water requirements calculated!');
+        }
+
+        function calculateFertilizer() {
+            const area = parseFloat(document.getElementById('fert-area').value);
+            const soil = document.getElementById('fert-soil').value;
+            if (!area) return NotificationManager.error('Please enter farm size');
+            
+            const rates = { 'Clay': 0.4, 'Sandy': 0.6, 'Loamy': 0.3 };
+            const kgNeeded = (area * rates[soil]).toFixed(2);
+            
+            const result = document.getElementById('fert-result');
+            result.innerHTML = `
+                <p>Fertilizer Needed: <span class="result-value">${kgNeeded} kg</span></p>
+                <p style="font-size:0.9rem;color:#666;margin-top:10px;">
+                    NPK 15-15-15 recommended per season</p>
+            `;
+            result.classList.remove('hidden');
+            NotificationManager.success('Fertilizer calculated!');
+        }
+
+        function calculateLabor() {
+            const area = parseFloat(document.getElementById('labor-area').value);
+            const activity = document.getElementById('labor-activity').value;
+            if (!area) return NotificationManager.error('Please enter farm size');
+            
+            const rates = {
+                'Land Preparation': 20, 'Planting': 30,
+                'Weeding': 25, 'Harvesting': 15
+            };
+            
+            const hoursNeeded = (area / rates[activity]).toFixed(1);
+            const workers = Math.ceil(hoursNeeded / 8);
+            
+            const result = document.getElementById('labor-result');
+            result.innerHTML = `
+                <p>Labor Needed: <span class="result-value">${hoursNeeded} hours</span></p>
+                <p style="font-size:0.9rem;color:#666;margin-top:10px;">
+                    Approximately ${workers} worker(s) for 1 day</p>
+            `;
+            result.classList.remove('hidden');
+            NotificationManager.success('Labor calculated!');
+        }
+    </script>
+</body>
+</html>

@@ -275,6 +275,41 @@ def diagnostician():
     conn.close()
     return render_template('diagnostician.html', plans=plans, diagnoses=diagnoses)
 
+@app.route('/analytics')
+@login_required
+def analytics():
+    conn = get_db_connection()
+    plans = conn.execute('SELECT * FROM farm_plans WHERE user_id = ? ORDER BY created_at DESC', (current_user.id,)).fetchall()
+    diagnoses = conn.execute('SELECT * FROM diagnoses WHERE user_id = ? ORDER BY created_at DESC', (current_user.id,)).fetchall()
+    conn.close()
+    plans_data = [dict(p) for p in plans]
+    return render_template('analytics.html', plans=plans, diagnoses=diagnoses, plans_data=plans_data)
+
+@app.route('/resources')
+@login_required
+def resources():
+    return render_template('resources.html')
+
+@app.route('/knowledge_base')
+@login_required
+def knowledge_base():
+    return render_template('knowledge_base.html')
+
+@app.route('/community_showcase')
+@login_required
+def community_showcase():
+    conn = get_db_connection()
+    public_showcases = conn.execute('''
+        SELECT p.*, u.name as user_name 
+        FROM farm_plans p 
+        JOIN users u ON p.user_id = u.id 
+        WHERE p.showcase_id IS NOT NULL 
+        ORDER BY p.created_at DESC 
+        LIMIT 50
+    ''').fetchall()
+    conn.close()
+    return render_template('community_showcase.html', public_showcases=public_showcases)
+
 @app.route('/showcase/<showcase_id>')
 def showcase(showcase_id):
     conn = get_db_connection()
@@ -578,6 +613,31 @@ def api_diagnose_follow_up():
     except Exception as e:
         conn.close()
         print(f"An error occurred in diagnosis follow-up: {e}")
+        return jsonify({'error': 'Sorry, an error occurred.'}), 500
+
+@app.route('/api/knowledge_query', methods=['POST'])
+@login_required
+def api_knowledge_query():
+    data = request.get_json()
+    question = data.get('question')
+    if not question or len(question.strip()) < 3:
+        return jsonify({'error': 'Question must be at least 3 characters'}), 400
+    
+    try:
+        if not gemini_model_vision:
+            return jsonify({'error': 'AI service is currently unavailable.'}), 503
+        
+        prompt = f"""You are an expert agricultural advisor. Answer this farming question concisely and practically:
+
+Question: {question}
+
+Provide a clear, actionable answer in 2-4 paragraphs. Focus on practical advice that farmers can implement."""
+        
+        response = gemini_model_vision.generate_content(prompt)
+        answer_html = markdown.markdown(response.text)
+        return jsonify({'answer': answer_html})
+    except Exception as e:
+        print(f"Error in knowledge query: {e}")
         return jsonify({'error': 'Sorry, an error occurred.'}), 500
 
 # --- ENHANCED HEALTH CHECK ENDPOINT ---
