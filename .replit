@@ -36,4 +36,5 @@ externalPort = 80
 
 [deployment]
 deploymentTarget = "autoscale"
-run = ["gunicorn", "--bind=0.0.0.0:5000", "--reuse-port", "--workers=4", "app:app"]
+run = ["gunicorn", "--bind=0.0.0.0:5000", "--workers=4", "--timeout=120", "--reuse-port", "app:app"]
+build = ["pip", "install", "-r", "requirements.txt"]
