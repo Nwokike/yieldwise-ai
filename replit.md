@@ -9,11 +9,14 @@ YieldWise AI is a comprehensive agricultural technology platform that helps farm
 **Version:** 3.0.0 (Complete Frontend Redesign with Bootstrap)
 **Environment:** Replit (imported and configured)
 
-⚠️ **Important:** To enable AI features, add these API keys to Replit Secrets:
-- `GEMINI_API_KEY` or `GOOGLE_API_KEY` - Required for AI Plant Doctor and Knowledge Base (get from https://aistudio.google.com/)
-- `GROQ_API_KEY` - Required for AI Farm Planner (get from https://console.groq.com/)
+⚠️ **Important:** To enable ALL AI features, add your Gemini API key to Replit Secrets:
+- `GEMINI_API_KEY` or `GOOGLE_API_KEY` - Required for ALL AI features (get FREE at https://aistudio.google.com/)
+  - AI Farm Planner
+  - AI Plant Doctor  
+  - Knowledge Base Q&A
+  - Follow-up chats
 
-The app will run without these keys, but AI features will be disabled.
+The app will run without this key, but AI features will be disabled. **This platform uses ONLY Gemini API** - no other AI service required!
 
 ## Core Features
 
@@ -48,17 +51,19 @@ The app will run without these keys, but AI features will be disabled.
 - All calculations use research-based formulas
 - No external APIs required
 
-### 5. 📚 Knowledge Base (NEW - FREE)
-- AI-powered farming expert Q&A
-- Ask any farming question and get instant AI answers
-- Pre-written guides on:
+### 5. 📚 Knowledge Base (NEW - FREE & Guest-Friendly!)
+- **Accessible to everyone** - no login required!
+- AI-powered farming expert Q&A using Gemini AI
+- Dynamically generated content based on your questions
+- Location-aware answers for logged-in users
+- Popular topics with one-click AI generation:
   - Pest Management (organic and chemical methods)
   - Soil Health (pH management, composting)
   - Water Management (irrigation techniques)
   - Crop Rotation (best practices)
   - Organic Farming (natural methods)
   - Marketing Tips (selling strategies)
-- Powered by Gemini AI - no additional costs
+- Powered by Gemini AI - completely free to use
 
 ### 6. 🌍 Community Showcase Gallery (NEW - FREE)
 - Browse public farm plans shared by other farmers
@@ -83,9 +88,12 @@ The app will run without these keys, but AI features will be disabled.
 ### Backend
 - **Framework:** Flask 3.1.2 (Python)
 - **Database:** SQLite 3
-- **AI Models:** 
-  - Google Gemini 2.5 Flash (multimodal - image + text)
-  - Groq Llama 3.1 (optional for text generation)
+- **AI Provider:** Google Gemini 2.0 Flash Experimental (ONLY AI USED)
+  - Farm planning and business plan generation
+  - Plant disease diagnosis with vision AI
+  - Knowledge base Q&A
+  - Follow-up conversations
+  - Location-aware recommendations
 - **PDF Generation:** WeasyPrint
 - **Security:** Flask-Login, Werkzeug password hashing, Flask-Limiter
 - **Server:** Gunicorn for production
@@ -279,10 +287,12 @@ Required secrets (managed through Replit Secrets):
 - Mobile app (React Native)
 
 ## Notes
+- **Single AI Provider:** Uses ONLY Gemini API - no other AI services needed!
 - Rate limiting uses in-memory storage (fine for development, consider Redis for production)
 - Database is file-based SQLite (suitable for MVP, consider PostgreSQL for heavy traffic)
 - Debug mode enabled for development (disable for production)
-- GROQ API is optional - app works with only Gemini
+- Knowledge Base accessible to guests for maximum reach
+- All AI features use the same Gemini API key for simplicity
 
 ## Author
 Onyeka Nwokike  
