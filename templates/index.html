@@ -1,106 +1,392 @@
 {% extends "base.html" %}
 
-{% block title %}YieldWise AI - AI-Powered Agricultural Planning{% endblock %}
-
-{% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/landing.css') }}">
-{% endblock %}
+{% block title %}YieldWise AI - Transform Your Farm with AI-Powered Intelligence{% endblock %}
 
 {% block content %}
-<div class="landing-container">
-    <nav class="main-nav">
-        <div class="logo">🌱 YieldWise AI</div>
-        <div class="nav-links">
-            <a href="{{ url_for('login') }}" class="nav-button secondary">Log In</a>
-            <a href="{{ url_for('register') }}" class="nav-button">Get Started Free</a>
-        </div>
-    </nav>
-
-    <header class="landing-header">
-        <h1>Go From Seed to Success with AI</h1>
-        <p>YieldWise AI is your all-in-one platform to plan profitable farms, diagnose plant diseases with a photo, and build your agricultural business. Powered by Gemini 2.5 Flash.</p>
-        <a href="#try-it-now" class="cta-button">Generate Your First Plan</a>
-    </header>
-
-    <section class="features">
-        <div class="feature-card">
-            <h3><i class="fas fa-seedling"></i> Instant Farm Plans</h3>
-            <p>Describe your land, budget, and location, and our AI will generate a comprehensive, step-by-step business plan in seconds, complete with crop recommendations and profit projections.</p>
-        </div>
-        <div class="feature-card">
-            <h3><i class="fas fa-stethoscope"></i> AI Plant Doctor</h3>
-            <p>Upload a photo of an affected plant leaf, and our advanced AI will diagnose the disease or pest, providing you with effective organic and chemical treatment options.</p>
-        </div>
-        <div class="feature-card">
-            <h3><i class="fas fa-share-alt"></i> Shareable Showcases</h3>
-            <p>Turn your farm plan into a beautiful, public webpage to share with potential partners or customers. Perfect for attracting investors and collaborators.</p>
-        </div>
-         <div class="feature-card">
-            <h3><i class="fas fa-file-pdf"></i> Professional PDFs</h3>
-            <p>Download any of your farm plans as a professionally formatted PDF document, perfect for printing, sharing, or including in official reports.</p>
-        </div>
-    </section>
-
-    <main id="try-it-now" class="guest-generator">
-         <div class="auth-container">
-            <h2>Try It Now: Get Your Free Plan</h2>
-            <p>Fill out the form below to get one complete farm plan, absolutely free.</p>
-            <form id="plan-form">
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="country">Country</label>
-                        <select id="country" name="country">
-                            <option value="Nigeria">Nigeria</option>
-                            <option value="Kenya">Kenya</option>
-                            <option value="Ghana">Ghana</option>
-                            <option value="South Africa">South Africa</option>
-                            <option value="United States">United States</option>
-                            <option value="India">India</option>
-                            <option value="Brazil">Brazil</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="currency">Currency</label>
-                        <select id="currency" name="currency">
-                            <option value="NGN">NGN (₦)</option>
-                            <option value="KES">KES (KSh)</option>
-                            <option value="GHS">GHS (₵)</option>
-                            <option value="ZAR">ZAR (R)</option>
-                            <option value="USD">USD ($)</option>
-                            <option value="EUR">EUR (€)</option>
-                            <option value="INR">INR (₹)</option>
-                            <option value="BRL">BRL (R$)</option>
-                        </select>
-                    </div>
+<div class="hero-section">
+    <div class="container hero-content">
+        <div class="row align-items-center">
+            <div class="col-lg-7 text-center text-lg-start">
+                <h1 class="display-3 fw-bold mb-4">
+                    Transform Your Farm with AI
+                </h1>
+                <p class="lead mb-4 fs-5">
+                    Plan profitable farms, diagnose plant diseases instantly, and access expert knowledge - all powered by cutting-edge AI technology. Join thousands of farmers growing smarter.
+                </p>
+                <div class="d-flex gap-3 flex-wrap justify-content-center justify-content-lg-start">
+                    <a href="#demo" class="btn btn-light btn-lg px-4 shadow">
+                        <i class="bi bi-play-circle"></i> Try Free Demo
+                    </a>
+                    <a href="{{ url_for('register') }}" class="btn btn-outline-light btn-lg px-4">
+                        <i class="bi bi-person-plus"></i> Sign Up Free
+                    </a>
                 </div>
-                <div class="form-group">
-                    <label for="location">City / Location</label>
-                    <input type="text" id="location" name="location" placeholder="e.g., Ikeja, Lagos" required>
-                </div>
-                <div class="form-group">
-                    <label for="space">Available Space</label>
-                    <input type="text" id="space" name="space" placeholder="e.g., 2 square meters on my balcony" required>
-                </div>
-                <div class="form-group">
-                    <label for="budget">Starting Budget</label>
-                    <input type="number" id="budget" name="budget" placeholder="e.g., 7000" required>
-                </div>
-                <button type="submit" id="generate-button">Generate My Free Plan</button>
-            </form>
+            </div>
+            <div class="col-lg-5 d-none d-lg-block text-center">
+                <i class="bi bi-cpu" style="font-size: 12rem; opacity: 0.2;"></i>
+            </div>
+        </div>
+    </div>
+</div>
 
-            <div id="results-container" class="hidden">
-                <div id="plan-output" class="plan-content"></div>
-                <div id="login-prompt" class="login-prompt hidden">
-                    <h3>Unlock Your Full Dashboard!</h3>
-                    <p>Your plan is ready. Create a free account to save this plan, download it as a PDF, and create a public showcase page.</p>
-                    <a href="{{ url_for('register') }}" class="button">Create Free Account & Save Plan</a>
+<section class="py-5 bg-white">
+    <div class="container">
+        <div class="row g-4 text-center">
+            <div class="col-6 col-md-3">
+                <div class="stat-card">
+                    <div class="stat-number">10K+</div>
+                    <div class="stat-label">Active Farmers</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="stat-card">
+                    <div class="stat-number">50K+</div>
+                    <div class="stat-label">Plans Created</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="stat-card">
+                    <div class="stat-number">25K+</div>
+                    <div class="stat-label">Diagnoses Made</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="stat-card">
+                    <div class="stat-number">15+</div>
+                    <div class="stat-label">Countries</div>
                 </div>
             </div>
         </div>
-    </main>
+    </div>
+</section>
+
+<section id="features" class="py-5">
+    <div class="container">
+        <div class="text-center mb-5">
+            <h2 class="display-5 fw-bold mb-3">Everything You Need to Succeed</h2>
+            <p class="lead text-muted">Powerful tools designed for modern farmers - all in one platform</p>
+        </div>
+        
+        <div class="row g-4">
+            <div class="col-lg-4 col-md-6">
+                <div class="card feature-card h-100">
+                    <div class="card-body">
+                        <div class="feature-icon">
+                            <i class="bi bi-cpu"></i>
+                        </div>
+                        <h4 class="fw-bold mb-3">AI Farm Planner</h4>
+                        <p class="text-muted mb-4">Generate detailed, location-specific business plans with crop recommendations, budget breakdowns, and 90-day action plans powered by advanced AI.</p>
+                        <a href="#demo" class="btn btn-success">Try Demo <i class="bi bi-arrow-right"></i></a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-4 col-md-6">
+                <div class="card feature-card h-100">
+                    <div class="card-body">
+                        <div class="feature-icon">
+                            <i class="bi bi-camera"></i>
+                        </div>
+                        <h4 class="fw-bold mb-3">AI Plant Doctor</h4>
+                        <p class="text-muted mb-4">Upload a photo and get instant disease diagnosis with treatment recommendations. Organic and chemical solutions included.</p>
+                        <span class="badge-premium">Login Required</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-4 col-md-6">
+                <div class="card feature-card h-100">
+                    <div class="card-body">
+                        <div class="feature-icon">
+                            <i class="bi bi-graph-up"></i>
+                        </div>
+                        <h4 class="fw-bold mb-3">Analytics Dashboard</h4>
+                        <p class="text-muted mb-4">Track your farm performance with visual charts. Monitor plans, locations, investments, and ROI projections in real-time.</p>
+                        <span class="badge-premium">Login Required</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-4 col-md-6">
+                <div class="card feature-card h-100">
+                    <div class="card-body">
+                        <div class="feature-icon">
+                            <i class="bi bi-calculator"></i>
+                        </div>
+                        <h4 class="fw-bold mb-3">Resource Calculator</h4>
+                        <p class="text-muted mb-4">Calculate exact requirements for seeds, water, fertilizer, and labor. 50+ crop types, multiple soil types, and climate zones supported.</p>
+                        <a href="{{ url_for('resources') }}" class="btn btn-outline-success">Calculate Now <i class="bi bi-arrow-right"></i></a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-4 col-md-6">
+                <div class="card feature-card h-100">
+                    <div class="card-body">
+                        <div class="feature-icon">
+                            <i class="bi bi-book"></i>
+                        </div>
+                        <h4 class="fw-bold mb-3">Knowledge Base</h4>
+                        <p class="text-muted mb-4">Ask any farming question and get instant AI-powered answers. Access expert guides on pest management, soil health, irrigation, and more.</p>
+                        <a href="{{ url_for('knowledge_base') }}" class="btn btn-outline-success">Ask Expert <i class="bi bi-arrow-right"></i></a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-4 col-md-6">
+                <div class="card feature-card h-100">
+                    <div class="card-body">
+                        <div class="feature-icon">
+                            <i class="bi bi-people"></i>
+                        </div>
+                        <h4 class="fw-bold mb-3">Community Showcase</h4>
+                        <p class="text-muted mb-4">Browse and share successful farm plans from farmers worldwide. Get inspired by proven strategies from different climates and regions.</p>
+                        <a href="{{ url_for('community_showcase') }}" class="btn btn-outline-success">Explore <i class="bi bi-arrow-right"></i></a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section id="demo" class="py-5 bg-light">
+    <div class="container">
+        <div class="text-center mb-5">
+            <h2 class="display-5 fw-bold mb-3">Try Our AI Farm Planner</h2>
+            <p class="lead text-muted">Get a taste of what YieldWise AI can do - no signup required!</p>
+        </div>
+        
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <div class="card shadow">
+                    <div class="card-body p-4">
+                        <form id="demo-form">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Location (City/State/Region)</label>
+                                <input type="text" class="form-control form-control-lg" id="location" placeholder="e.g., Lagos, Kano, Ogun State, or your location" required>
+                                <small class="form-text text-muted">Nigerian users: Include your state for better local recommendations</small>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label fw-bold">Farm Size</label>
+                                    <select class="form-select form-select-lg" id="space" required>
+                                        <option value="">Select size...</option>
+                                        <option value="Small backyard (50-200 sqm)">Small backyard (50-200 sqm)</option>
+                                        <option value="Quarter acre (1000 sqm)">Quarter acre (1000 sqm)</option>
+                                        <option value="Half acre (2000 sqm)">Half acre (2000 sqm)</option>
+                                        <option value="1 acre (4000 sqm)">1 acre (4000 sqm)</option>
+                                        <option value="2 acres (8000 sqm)">2 acres (8000 sqm)</option>
+                                        <option value="5 acres (20,000 sqm)">5 acres (20,000 sqm)</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label fw-bold">Budget</label>
+                                    <input type="number" class="form-control form-control-lg" id="budget" placeholder="e.g., 50000" required>
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label fw-bold">Country</label>
+                                    <select class="form-select form-select-lg" id="country" required>
+                                        <option value="">Select country...</option>
+                                        <option value="Nigeria">Nigeria</option>
+                                        <option value="Kenya">Kenya</option>
+                                        <option value="Ghana">Ghana</option>
+                                        <option value="South Africa">South Africa</option>
+                                        <option value="Uganda">Uganda</option>
+                                        <option value="Tanzania">Tanzania</option>
+                                        <option value="Rwanda">Rwanda</option>
+                                        <option value="Ethiopia">Ethiopia</option>
+                                        <option value="Other">Other</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label fw-bold">Currency</label>
+                                    <select class="form-select form-select-lg" id="currency" required>
+                                        <option value="">Select currency...</option>
+                                        <option value="₦">₦ - Nigerian Naira</option>
+                                        <option value="KSh">KSh - Kenyan Shilling</option>
+                                        <option value="GH₵">GH₵ - Ghanaian Cedi</option>
+                                        <option value="R">R - South African Rand</option>
+                                        <option value="UGX">UGX - Ugandan Shilling</option>
+                                        <option value="$">$ - US Dollar</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <button type="submit" class="btn btn-success btn-lg w-100" id="generate-btn">
+                                <i class="bi bi-magic"></i> Generate My Farm Plan
+                            </button>
+                            
+                            <p class="text-center text-muted mt-3 mb-0">
+                                <small><i class="bi bi-info-circle"></i> Limited to 1 demo plan. Sign up for unlimited access!</small>
+                            </p>
+                        </form>
+                        
+                        <div id="demo-result" class="mt-4" style="display: none;">
+                            <hr class="my-4">
+                            <div id="plan-content" class="p-3 bg-light rounded"></div>
+                            <div class="alert alert-success mt-4 border-0 shadow-sm">
+                                <h5 class="fw-bold"><i class="bi bi-star-fill"></i> Want to save this plan?</h5>
+                                <p class="mb-3">Sign up for free to save your plans, access Plant Doctor, and unlock all features!</p>
+                                <a href="{{ url_for('register') }}" class="btn btn-success">Create Free Account</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="py-5">
+    <div class="container">
+        <div class="text-center mb-5">
+            <h2 class="display-5 fw-bold mb-3">Community Showcase</h2>
+            <p class="lead text-muted">Get inspired by successful farm plans from farmers worldwide</p>
+        </div>
+        
+        <div class="row g-4" id="showcase-grid">
+            <div class="col-12 text-center">
+                <div class="spinner-border text-success" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="text-center mt-4">
+            <a href="{{ url_for('community_showcase') }}" class="btn btn-outline-success btn-lg">
+                View All Showcases <i class="bi bi-arrow-right"></i>
+            </a>
+        </div>
+    </div>
+</section>
+
+<div class="cta-section">
+    <div class="container">
+        <h2 class="display-4 fw-bold mb-4">Ready to Transform Your Farm?</h2>
+        <p class="lead mb-4 fs-5">Join thousands of farmers already using YieldWise AI to grow smarter and more profitably</p>
+        <a href="{{ url_for('register') }}" class="btn btn-light btn-lg px-5 shadow">
+            <i class="bi bi-rocket-takeoff"></i> Get Started Free - No Credit Card Required
+        </a>
+    </div>
 </div>
+
+<footer class="footer">
+    <div class="container text-center">
+        <p class="mb-2">&copy; 2025 YieldWise AI - Built with ❤️ for African Farmers</p>
+        <p class="mb-0 text-muted">
+            <small>Developed by Onyeka Nwokike | Agricultural & Bioresources Engineer</small>
+        </p>
+    </div>
+</footer>
 {% endblock %}
 
 {% block extra_js %}
-<script src="{{ url_for('static', filename='js/landing.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    loadShowcases();
+    
+    const demoForm = document.getElementById('demo-form');
+    demoForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        generateDemoPlan();
+    });
+});
+
+function loadShowcases() {
+    fetch('/community_showcase')
+        .then(response => response.text())
+        .then(html => {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            
+            const grid = document.getElementById('showcase-grid');
+            grid.innerHTML = '';
+            
+            let count = 0;
+            const showcases = doc.querySelectorAll('.showcase-item');
+            
+            showcases.forEach((item, index) => {
+                if (index < 6) {
+                    const col = document.createElement('div');
+                    col.className = 'col-lg-4 col-md-6';
+                    
+                    const titleEl = item.querySelector('h3, h4, h5, .card-title');
+                    const title = titleEl ? titleEl.textContent.trim() : 'Farm Plan';
+                    const link = item.querySelector('a') ? item.querySelector('a').href : '#';
+                    
+                    col.innerHTML = `
+                        <div class="card showcase-card h-100" onclick="window.location='${link}'">
+                            <div class="card-body">
+                                <h5 class="card-title text-success fw-bold">
+                                    <i class="bi bi-geo-alt"></i> ${title}
+                                </h5>
+                                <p class="text-muted">Shared by a farmer in the community</p>
+                                <a href="${link}" class="btn btn-sm btn-outline-success">
+                                    View Plan <i class="bi bi-arrow-right"></i>
+                                </a>
+                            </div>
+                        </div>
+                    `;
+                    grid.appendChild(col);
+                    count++;
+                }
+            });
+            
+            if (count === 0) {
+                grid.innerHTML = '<div class="col-12"><div class="empty-state"><i class="bi bi-people"></i><p>No showcases available yet. Be the first to share your farm plan!</p></div></div>';
+            }
+        })
+        .catch(() => {
+            const grid = document.getElementById('showcase-grid');
+            grid.innerHTML = '<div class="col-12"><div class="empty-state"><i class="bi bi-wifi-off"></i><p>Unable to load showcases. Please check back later.</p></div></div>';
+        });
+}
+
+function generateDemoPlan() {
+    const btn = document.getElementById('generate-btn');
+    const result = document.getElementById('demo-result');
+    const planContent = document.getElementById('plan-content');
+    
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Generating...';
+    
+    const data = {
+        location: document.getElementById('location').value,
+        space: document.getElementById('space').value,
+        budget: document.getElementById('budget').value,
+        country: document.getElementById('country').value,
+        currency: document.getElementById('currency').value
+    };
+    
+    fetch('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            showNotification(data.error, 'danger');
+        } else {
+            planContent.innerHTML = data.plan;
+            result.style.display = 'block';
+            result.scrollIntoView({ behavior: 'smooth' });
+            showNotification('Plan generated successfully!', 'success');
+        }
+    })
+    .catch(error => {
+        showNotification('An error occurred. Please try again.', 'danger');
+    })
+    .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-magic"></i> Generate My Farm Plan';
+    });
+}
+</script>
 {% endblock %}

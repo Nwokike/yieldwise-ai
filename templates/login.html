@@ -3,26 +3,41 @@
 {% block title %}Login - YieldWise AI{% endblock %}
 
 {% block content %}
-<div class="container auth-container">
-    <header>
-        <h1>Welcome Back!</h1>
-        <p>Log in to access your dashboard.</p>
-    </header>
-
-    <form method="POST" action="{{ url_for('login') }}">
-        <div class="form-group">
-            <label for="email">Email Address</label>
-            <input type="email" id="email" name="email" required>
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-5">
+            <div class="card shadow-lg border-0">
+                <div class="card-body p-5">
+                    <div class="text-center mb-4">
+                        <i class="bi bi-stars text-success" style="font-size: 3rem;"></i>
+                        <h2 class="fw-bold mt-3">Welcome Back</h2>
+                        <p class="text-muted">Login to continue your farming journey</p>
+                    </div>
+                    
+                    <form method="POST" action="{{ url_for('login') }}">
+                        <div class="mb-3">
+                            <label for="email" class="form-label">Email Address</label>
+                            <input type="email" class="form-control form-control-lg" id="email" name="email" required>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label for="password" class="form-label">Password</label>
+                            <input type="password" class="form-control form-control-lg" id="password" name="password" required>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-success btn-lg w-100 mb-3">
+                            <i class="bi bi-box-arrow-in-right"></i> Login
+                        </button>
+                    </form>
+                    
+                    <hr>
+                    
+                    <p class="text-center mb-0">
+                        Don't have an account? <a href="{{ url_for('register') }}" class="text-success fw-bold">Sign Up Free</a>
+                    </p>
+                </div>
+            </div>
         </div>
-        <div class="form-group">
-            <label for="password">Password</label>
-            <input type="password" id="password" name="password" required>
-        </div>
-        <button type="submit">Log In</button>
-    </form>
-
-    <div class="auth-switch">
-        <p>Don't have an account? <a href="{{ url_for('register') }}">Register</a></p>
     </div>
 </div>
 {% endblock %}

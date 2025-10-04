@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+
+{% block title %}Analytics - YieldWise AI{% endblock %}
+
+{% block extra_css %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="bg-info text-white py-4">
+    <div class="container">
+        <h1 class="fw-bold mb-2">
+            <i class="bi bi-graph-up"></i> Analytics Dashboard
+        </h1>
+        <p class="mb-0">Track your farming journey and performance</p>
+    </div>
+</div>
+
+<div class="container py-4">
+    <div class="row g-4 mb-4">
+        <div class="col-md-3 col-6">
+            <div class="card bg-success text-white text-center">
+                <div class="card-body">
+                    <h3 class="fw-bold">{{ plans|length }}</h3>
+                    <p class="mb-0">Total Plans</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="card bg-primary text-white text-center">
+                <div class="card-body">
+                    <h3 class="fw-bold">{{ diagnoses|length }}</h3>
+                    <p class="mb-0">Diagnoses</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="card bg-warning text-white text-center">
+                <div class="card-body">
+                    <h3 class="fw-bold">{{ plans|length + diagnoses|length }}</h3>
+                    <p class="mb-0">Total Activities</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="card bg-info text-white text-center">
+                <div class="card-body">
+                    <h3 class="fw-bold">100%</h3>
+                    <p class="mb-0">Success Rate</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if plans %}
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-white">
+            <h4 class="mb-0 fw-bold"><i class="bi bi-bar-chart text-success"></i> Plans Over Time</h4>
+        </div>
+        <div class="card-body">
+            <canvas id="plansChart" style="max-height: 300px;"></canvas>
+        </div>
+    </div>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-white">
+            <h4 class="mb-0 fw-bold"><i class="bi bi-geo-alt text-success"></i> Plans by Location</h4>
+        </div>
+        <div class="card-body">
+            <canvas id="locationsChart" style="max-height: 300px;"></canvas>
+        </div>
+    </div>
+    {% else %}
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <div class="empty-state">
+                <i class="bi bi-graph-up"></i>
+                <p>Create some farm plans to see your analytics!</p>
+                <a href="{{ url_for('dashboard') }}" class="btn btn-success">Create Your First Plan</a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const plansData = {{ plans_data|tojson }};
+
+if (plansData && plansData.length > 0) {
+    const plansOverTime = plansData.reduce((acc, plan) => {
+        const date = plan.created_at.split(' ')[0];
+        acc[date] = (acc[date] || 0) + 1;
+        return acc;
+    }, {});
+    
+    new Chart(document.getElementById('plansChart'), {
+        type: 'line',
+        data: {
+            labels: Object.keys(plansOverTime),
+            datasets: [{
+                label: 'Plans Created',
+                data: Object.values(plansOverTime),
+                borderColor: '#28a745',
+                backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                tension: 0.4,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            }
+        }
+    });
+    
+    const locationCounts = plansData.reduce((acc, plan) => {
+        acc[plan.location] = (acc[plan.location] || 0) + 1;
+        return acc;
+    }, {});
+    
+    new Chart(document.getElementById('locationsChart'), {
+        type: 'doughnut',
+        data: {
+            labels: Object.keys(locationCounts),
+            datasets: [{
+                data: Object.values(locationCounts),
+                backgroundColor: [
+                    '#28a745', '#007bff', '#ffc107', '#dc3545', '#6f42c1', '#fd7e14'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false
+        }
+    });
+}
+</script>
+{% endblock %}

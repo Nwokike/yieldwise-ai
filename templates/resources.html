@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+
+{% block title %}Resource Calculator - YieldWise AI{% endblock %}
+
+{% block content %}
+<div class="bg-warning text-dark py-4">
+    <div class="container">
+        <h1 class="fw-bold mb-2">
+            <i class="bi bi-calculator"></i> Resource Calculator
+        </h1>
+        <p class="mb-0">Calculate seeds, water, fertilizer & labor requirements</p>
+    </div>
+</div>
+
+<div class="container py-4">
+    <div class="row g-4">
+        <div class="col-md-6">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0 fw-bold"><i class="bi bi-seedling"></i> Seed Calculator</h5>
+                </div>
+                <div class="card-body">
+                    <form id="seed-form">
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Crop Type</label>
+                            <select class="form-select" id="seed-crop" required>
+                                <option value="">Select crop...</option>
+                                <optgroup label="Nigerian Priority Crops">
+                                    <option value="Cassava">Cassava</option>
+                                    <option value="Maize">Maize/Corn</option>
+                                    <option value="Rice">Rice</option>
+                                    <option value="Yam">Yam</option>
+                                    <option value="Plantain">Plantain</option>
+                                    <option value="Ginger">Ginger</option>
+                                </optgroup>
+                                <optgroup label="Vegetables">
+                                    <option value="Tomato">Tomato</option>
+                                    <option value="Pepper">Pepper</option>
+                                    <option value="Onion">Onion</option>
+                                    <option value="Okra">Okra</option>
+                                </optgroup>
+                                <optgroup label="Other Crops">
+                                    <option value="Beans">Beans</option>
+                                    <option value="Soybean">Soybean</option>
+                                    <option value="Groundnut">Groundnut</option>
+                                    <option value="Sorghum">Sorghum</option>
+                                </optgroup>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Farm Size (hectares)</label>
+                            <input type="number" class="form-control" id="seed-size" step="0.1" required>
+                        </div>
+                        <button type="submit" class="btn btn-success w-100">Calculate</button>
+                    </form>
+                    <div id="seed-result" class="calculator-result mt-3" style="display: none;">
+                        <h3 id="seed-amount"></h3>
+                        <p class="mb-0">Seeds Required</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0 fw-bold"><i class="bi bi-droplet"></i> Water Calculator</h5>
+                </div>
+                <div class="card-body">
+                    <form id="water-form">
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Crop Type</label>
+                            <select class="form-select" id="water-crop" required>
+                                <option value="">Select crop...</option>
+                                <option value="Vegetables">Vegetables</option>
+                                <option value="Fruits">Fruits</option>
+                                <option value="Grains">Grains</option>
+                                <option value="Tubers">Tubers</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Farm Size (hectares)</label>
+                            <input type="number" class="form-control" id="water-size" step="0.1" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Climate</label>
+                            <select class="form-select" id="water-climate" required>
+                                <option value="">Select climate...</option>
+                                <option value="Dry">Dry</option>
+                                <option value="Moderate">Moderate</option>
+                                <option value="Humid">Humid</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">Calculate</button>
+                    </form>
+                    <div id="water-result" class="calculator-result mt-3" style="display: none; background: linear-gradient(135deg, #007bff, #0056b3);">
+                        <h3 id="water-amount"></h3>
+                        <p class="mb-0">Liters Daily</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0 fw-bold"><i class="bi bi-flask"></i> Fertilizer Calculator</h5>
+                </div>
+                <div class="card-body">
+                    <form id="fertilizer-form">
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Soil Type</label>
+                            <select class="form-select" id="fert-soil" required>
+                                <option value="">Select soil...</option>
+                                <option value="Sandy">Sandy</option>
+                                <option value="Clay">Clay</option>
+                                <option value="Loamy">Loamy</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Farm Size (hectares)</label>
+                            <input type="number" class="form-control" id="fert-size" step="0.1" required>
+                        </div>
+                        <button type="submit" class="btn btn-info w-100 text-white">Calculate</button>
+                    </form>
+                    <div id="fert-result" class="calculator-result mt-3" style="display: none; background: linear-gradient(135deg, #17a2b8, #117a8b);">
+                        <h3 id="fert-amount"></h3>
+                        <p class="mb-0">Kg of Fertilizer</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0 fw-bold"><i class="bi bi-people"></i> Labor Calculator</h5>
+                </div>
+                <div class="card-body">
+                    <form id="labor-form">
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Activity</label>
+                            <select class="form-select" id="labor-activity" required>
+                                <option value="">Select activity...</option>
+                                <option value="Planting">Planting</option>
+                                <option value="Weeding">Weeding</option>
+                                <option value="Harvesting">Harvesting</option>
+                                <option value="General">General Farming</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Farm Size (hectares)</label>
+                            <input type="number" class="form-control" id="labor-size" step="0.1" required>
+                        </div>
+                        <button type="submit" class="btn btn-secondary w-100">Calculate</button>
+                    </form>
+                    <div id="labor-result" class="calculator-result mt-3" style="display: none; background: linear-gradient(135deg, #6c757d, #495057);">
+                        <h3 id="labor-amount"></h3>
+                        <p class="mb-0">Man-Hours Required</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const seedRates = { Maize: 25, Tomato: 0.5, Cassava: 10000, Rice: 80, Beans: 90, Yam: 1200 };
+const waterRates = { Vegetables: 40000, Fruits: 50000, Grains: 30000, Tubers: 35000 };
+const climateMultiplier = { Dry: 1.5, Moderate: 1, Humid: 0.7 };
+const fertilizerRates = { Sandy: 400, Clay: 300, Loamy: 250 };
+const laborRates = { Planting: 120, Weeding: 80, Harvesting: 150, General: 100 };
+
+document.getElementById('seed-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const crop = document.getElementById('seed-crop').value;
+    const size = parseFloat(document.getElementById('seed-size').value);
+    const amount = seedRates[crop] * size;
+    document.getElementById('seed-amount').textContent = amount.toFixed(1) + ' kg';
+    document.getElementById('seed-result').style.display = 'block';
+});
+
+document.getElementById('water-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const crop = document.getElementById('water-crop').value;
+    const size = parseFloat(document.getElementById('water-size').value);
+    const climate = document.getElementById('water-climate').value;
+    const amount = waterRates[crop] * size * climateMultiplier[climate];
+    document.getElementById('water-amount').textContent = amount.toLocaleString() + 'L';
+    document.getElementById('water-result').style.display = 'block';
+});
+
+document.getElementById('fertilizer-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const soil = document.getElementById('fert-soil').value;
+    const size = parseFloat(document.getElementById('fert-size').value);
+    const amount = fertilizerRates[soil] * size;
+    document.getElementById('fert-amount').textContent = amount.toFixed(0) + ' kg';
+    document.getElementById('fert-result').style.display = 'block';
+});
+
+document.getElementById('labor-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const activity = document.getElementById('labor-activity').value;
+    const size = parseFloat(document.getElementById('labor-size').value);
+    const amount = laborRates[activity] * size;
+    document.getElementById('labor-amount').textContent = amount.toFixed(0) + ' hrs';
+    document.getElementById('labor-result').style.display = 'block';
+});
+</script>
+{% endblock %}
