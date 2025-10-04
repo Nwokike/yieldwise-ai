@@ -392,21 +392,38 @@
         </header>
 
         <section class="features">
+            <h2 style="text-align: center; margin-bottom: 30px; color: #2c6b4f;">🚀 Everything You Need to Build a Profitable Farm</h2>
             <div class="feature-card">
-                <h3><i class="fas fa-seedling"></i> Instant Farm Plans</h3>
-                <p>Describe your land, budget, and location, and our AI will generate a detailed, step-by-step business plan in seconds, complete with crop recommendations and profit projections.</p>
+                <h3><i class="fas fa-seedling"></i> AI Farm Planner</h3>
+                <p>Generate detailed, location-specific farm business plans with crop recommendations, budget breakdowns, and 90-day action plans.</p>
             </div>
             <div class="feature-card">
                 <h3><i class="fas fa-stethoscope"></i> AI Plant Doctor</h3>
-                <p>Upload a photo of an affected plant leaf, and our advanced AI will diagnose the disease or pest, providing you with effective organic and chemical treatment options.</p>
+                <p>Upload a photo of any plant issue and get instant AI-powered diagnosis with organic and chemical treatment options.</p>
             </div>
             <div class="feature-card">
-                <h3><i class="fas fa-share-alt"></i> Shareable Showcases</h3>
-                <p>Turn your farm plan into a beautiful, public webpage to share with potential partners or customers. You can even promote your showcase to get more visibility.</p>
+                <h3><i class="fas fa-chart-line"></i> Analytics Dashboard</h3>
+                <p>Visualize your farm performance with interactive charts showing investments, ROI projections, and growth trends over time.</p>
+            </div>
+            <div class="feature-card">
+                <h3><i class="fas fa-calculator"></i> Resource Calculator</h3>
+                <p>Calculate exact seed, water, fertilizer, and labor requirements for any crop type and farm size.</p>
+            </div>
+            <div class="feature-card">
+                <h3><i class="fas fa-book"></i> Knowledge Base</h3>
+                <p>Ask our AI farming expert any question about pest management, soil health, irrigation, crop rotation, and more.</p>
+            </div>
+            <div class="feature-card">
+                <h3><i class="fas fa-users"></i> Community Gallery</h3>
+                <p>Browse and learn from farm plans shared by successful farmers worldwide. Get inspired by real strategies.</p>
+            </div>
+            <div class="feature-card">
+                <h3><i class="fas fa-share-alt"></i> Public Showcases</h3>
+                <p>Turn your farm plan into a beautiful webpage to share with investors, partners, or customers.</p>
             </div>
              <div class="feature-card">
-                <h3><i class="fas fa-file-pdf"></i> Professional PDFs</h3>
-                <p>Download any of your farm plans as a professionally formatted PDF document, perfect for printing, sharing, or including in official reports.</p>
+                <h3><i class="fas fa-file-pdf"></i> PDF Export</h3>
+                <p>Download professional PDF documents of your plans, perfect for printing or official presentations.</p>
             </div>
         </section>
 
@@ -463,7 +480,154 @@
                 </div>
             </div>
         </main>
+
+        <!-- Demo Section: Resource Calculator -->
+        <section class="guest-generator" style="background: linear-gradient(135deg, #e8f5e9 0%, #f1f8e9 100%); padding: 60px 20px;">
+            <div class="auth-container">
+                <h2>🧮 Try the Resource Calculator</h2>
+                <p>Calculate your farming resource needs instantly - no login required!</p>
+                
+                <div style="margin-bottom: 20px;">
+                    <button class="calc-tab active" onclick="switchCalcTab('seeds')">Seeds</button>
+                    <button class="calc-tab" onclick="switchCalcTab('water')">Water</button>
+                    <button class="calc-tab" onclick="switchCalcTab('fertilizer')">Fertilizer</button>
+                    <button class="calc-tab" onclick="switchCalcTab('labor')">Labor</button>
+                </div>
+
+                <!-- Seeds Calculator -->
+                <div id="seeds-calc" class="calc-section">
+                    <div class="form-group">
+                        <label>Crop Type</label>
+                        <select id="seed-crop">
+                            <option value="tomato">Tomato</option>
+                            <option value="maize">Maize</option>
+                            <option value="rice">Rice</option>
+                            <option value="beans">Beans</option>
+                            <option value="cassava">Cassava</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Farm Size (hectares)</label>
+                        <input type="number" id="seed-area" placeholder="e.g., 2" value="1">
+                    </div>
+                    <button onclick="calculateSeeds()" class="button">Calculate Seeds Needed</button>
+                    <div id="seeds-result" class="calc-result hidden"></div>
+                </div>
+
+                <!-- Water Calculator -->
+                <div id="water-calc" class="calc-section hidden">
+                    <div class="form-group">
+                        <label>Crop Type</label>
+                        <select id="water-crop">
+                            <option value="tomato">Tomato</option>
+                            <option value="maize">Maize</option>
+                            <option value="rice">Rice</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Farm Size (hectares)</label>
+                        <input type="number" id="water-area" placeholder="e.g., 2" value="1">
+                    </div>
+                    <div class="form-group">
+                        <label>Climate</label>
+                        <select id="water-climate">
+                            <option value="humid">Humid</option>
+                            <option value="moderate">Moderate</option>
+                            <option value="dry">Dry</option>
+                        </select>
+                    </div>
+                    <button onclick="calculateWater()" class="button">Calculate Water Needs</button>
+                    <div id="water-result" class="calc-result hidden"></div>
+                </div>
+
+                <!-- Fertilizer Calculator -->
+                <div id="fertilizer-calc" class="calc-section hidden">
+                    <div class="form-group">
+                        <label>Crop Type</label>
+                        <select id="fert-crop">
+                            <option value="tomato">Tomato</option>
+                            <option value="maize">Maize</option>
+                            <option value="rice">Rice</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Farm Size (hectares)</label>
+                        <input type="number" id="fert-area" placeholder="e.g., 2" value="1">
+                    </div>
+                    <div class="form-group">
+                        <label>Soil Type</label>
+                        <select id="fert-soil">
+                            <option value="clay">Clay</option>
+                            <option value="loam">Loam</option>
+                            <option value="sandy">Sandy</option>
+                        </select>
+                    </div>
+                    <button onclick="calculateFertilizer()" class="button">Calculate Fertilizer</button>
+                    <div id="fert-result" class="calc-result hidden"></div>
+                </div>
+
+                <!-- Labor Calculator -->
+                <div id="labor-calc" class="calc-section hidden">
+                    <div class="form-group">
+                        <label>Farm Activity</label>
+                        <select id="labor-activity">
+                            <option value="planting">Planting</option>
+                            <option value="weeding">Weeding</option>
+                            <option value="harvesting">Harvesting</option>
+                            <option value="irrigation">Irrigation Setup</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Farm Size (hectares)</label>
+                        <input type="number" id="labor-area" placeholder="e.g., 2" value="1">
+                    </div>
+                    <button onclick="calculateLabor()" class="button">Calculate Labor Hours</button>
+                    <div id="labor-result" class="calc-result hidden"></div>
+                </div>
+
+                <p style="margin-top: 30px; text-align: center; color: #666;">
+                    <strong>Want to save your calculations?</strong> 
+                    <a href="{{ url_for('register') }}" style="color: #2c6b4f; font-weight: bold;">Create a free account</a>
+                </p>
+            </div>
+        </section>
+
+        <!-- Demo Section: Community Gallery Preview -->
+        <section class="guest-generator" style="background: #fff; padding: 60px 20px;">
+            <div class="auth-container">
+                <h2>🌍 Browse Community Farm Plans</h2>
+                <p>See real farm plans shared by farmers worldwide - no login required!</p>
+                <a href="{{ url_for('community_showcase') }}" class="cta-button" style="display: inline-block; margin-top: 20px;">View Community Gallery →</a>
+            </div>
+        </section>
     </div>
+
+    <style>
+        .calc-tab {
+            padding: 10px 20px;
+            margin: 0 5px;
+            border: 2px solid #2c6b4f;
+            background: white;
+            color: #2c6b4f;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .calc-tab.active {
+            background: #2c6b4f;
+            color: white;
+        }
+        .calc-section {
+            margin-top: 30px;
+        }
+        .calc-result {
+            margin-top: 20px;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            border: 2px solid #4caf50;
+        }
+    </style>
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
