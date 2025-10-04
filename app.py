@@ -60,6 +60,8 @@ def get_db_connection():
 
 def init_db():
     conn = get_db_connection()
+    
+    # Create tables
     conn.execute('CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT NOT NULL UNIQUE, password TEXT NOT NULL, name TEXT NOT NULL);')
     conn.execute('''
         CREATE TABLE IF NOT EXISTS farm_plans (
@@ -73,6 +75,17 @@ def init_db():
     conn.execute('CREATE TABLE IF NOT EXISTS chat_history (id INTEGER PRIMARY KEY AUTOINCREMENT, plan_id INTEGER NOT NULL, role TEXT NOT NULL, content TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (plan_id) REFERENCES farm_plans (id));')
     conn.execute('CREATE TABLE IF NOT EXISTS diagnoses (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, title TEXT NOT NULL, crop_type TEXT, report_html TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (user_id) REFERENCES users (id));')
     conn.execute('CREATE TABLE IF NOT EXISTS diagnoses_chat_history (id INTEGER PRIMARY KEY AUTOINCREMENT, diagnosis_id INTEGER NOT NULL, role TEXT NOT NULL, content TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (diagnosis_id) REFERENCES diagnoses (id));')
+    
+    # Create indexes for performance optimization
+    conn.execute('CREATE INDEX IF NOT EXISTS idx_farm_plans_user_id ON farm_plans(user_id);')
+    conn.execute('CREATE INDEX IF NOT EXISTS idx_farm_plans_created_at ON farm_plans(created_at DESC);')
+    conn.execute('CREATE INDEX IF NOT EXISTS idx_farm_plans_showcase_id ON farm_plans(showcase_id);')
+    conn.execute('CREATE INDEX IF NOT EXISTS idx_farm_plans_country ON farm_plans(country);')
+    conn.execute('CREATE INDEX IF NOT EXISTS idx_chat_history_plan_id ON chat_history(plan_id);')
+    conn.execute('CREATE INDEX IF NOT EXISTS idx_diagnoses_user_id ON diagnoses(user_id);')
+    conn.execute('CREATE INDEX IF NOT EXISTS idx_diagnoses_created_at ON diagnoses(created_at DESC);')
+    conn.execute('CREATE INDEX IF NOT EXISTS idx_diagnoses_chat_history_diagnosis_id ON diagnoses_chat_history(diagnosis_id);')
+    
     conn.commit()
     conn.close()
 
